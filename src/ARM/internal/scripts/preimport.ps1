@@ -3,9 +3,6 @@
 [CmdletBinding()]
 param (
   [Parameter()]
-  [string] $Task = 'Default',
-
-  [Parameter()]
   [string] $ModuleInstallScope = 'CurrentUser'
 )
 
@@ -22,10 +19,10 @@ $modules = @(
     Name       = 'PSScriptAnalyzer'
     Repository = 'PSGallery'
   }
-  # @{
-  #   Name       = 'platyPS'
-  #   Repository = 'PSGallery'
-  # }
+  @{
+    Name       = 'PSModuleDevelopment'
+    Repository = 'PSGallery'
+  }
 )
 
 Write-PSFMessage -Level Important -Message "Starting module import..."
