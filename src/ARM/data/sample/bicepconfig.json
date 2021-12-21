@@ -1,0 +1,45 @@
+{
+  "analyzers": {
+    "core": {
+      "enabled": true,
+      "rules": {
+        "adminusername-should-not-be-literal": {
+          "level": "warning"
+        },
+        "no-hardcoded-env-urls": {
+          "level": "warning"
+        },
+        "no-unused-params": {
+          "level": "warning"
+        },
+        "no-unused-vars": {
+          "level": "warning"
+        },
+        "prefer-interpolation": {
+          "level": "warning"
+        },
+        "secure-parameter-default": {
+          "level": "warning"
+        },
+        "simplify-interpolation": {
+          "level": "warning"
+        }
+      }
+    }
+  },
+  "moduleAliases": {
+    "br": {
+      "demoRegistry": {
+        "registry": "deveoacracr01.azurecr.io",
+        "modulePath": "bicep/modules"
+      }
+    }
+  },
+  "cloud": {
+    "credentialPrecedence": [
+      "AzureCLI",
+      "AzurePowerShell"
+    ],
+    "currentProfile": "AzureCloud"
+  }
+}

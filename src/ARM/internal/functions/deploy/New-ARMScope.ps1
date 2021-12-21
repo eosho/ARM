@@ -1,0 +1,71 @@
+function New-ARMScope {
+  <#
+    .SYNOPSIS
+      Returns an ARMScope for a path or for a scope
+
+    .DESCRIPTION
+      Returns an ARMScope for a path or for a scope
+
+    .PARAMETER Scope
+      The scope for which to return a scope object.
+
+    .PARAMETER ResourceGroupName
+      The name of the resource group for which to return a scope object.
+
+    .PARAMETER SubscriptionId
+      The subscription id for which to return a scope object.
+
+    .EXAMPLE
+      New-ARMScope -Scope "resourcegroup" -ResourceGroupName "MyResourceGroup" -SubscriptionId "MySubscriptionId"
+      Return ARMDeploymentScope
+
+    .INPUTS
+      Scope
+
+    .OUTPUTS
+      [ARMDeploymentScope]
+  #>
+  [OutputType([ARMDeploymentScope])]
+  [CmdletBinding(SupportsShouldProcess = $true)]
+  param (
+    [Parameter(ParameterSetName = "scope")]
+    [ValidateSet("resourcegroup", "subscription")]
+    [string] $Scope,
+
+    [Parameter()]
+    [string] $ResourceGroupName,
+
+    [Parameter(Mandatory = $false)]
+    [string] $SubscriptionId = (Get-AzContext).Subscription.Id
+  )
+
+  begin {
+    Write-Debug ('{0} entered' -f $MyInvocation.MyCommand)
+
+    # lets construct the scope
+    if ($ResourceGroupName -and $scope -eq "resourcegroup") {
+      $scopePath = '/subscriptions/{0}/resourceGroups/{1}' -f $SubscriptionId, $ResourceGroupName
+    } elseif ($SubscriptionId -and $scope -eq "subscription") {
+      $scopePath = '/subscriptions/{0}' -f $SubscriptionId
+    } else {
+      throw "Must specify either resourcegroup or subscription scope"
+    }
+    #endregion
+  }
+
+  process {
+    switch ($PSCmdlet.ParameterSetName) {
+      scope {
+        if ($PSCmdlet.ShouldProcess("Scope [$scope]", 'Create')) {
+          $scopeObject = ([ARMDeploymentScope]::new($scopePath))
+        }
+      }
+    }
+
+    return $scopeObject
+  }
+
+  end {
+    Write-Debug ('{0} exited' -f $MyInvocation.MyCommand)
+  }
+}
