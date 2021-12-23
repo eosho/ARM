@@ -113,17 +113,13 @@ function New-ARMDeployment {
   begin {
     Write-Debug ("{0} entered" -f $MyInvocation.MyCommand)
 
-    #region Import all module helpers
-    Get-ChildItem -Path  $(Split-Path -Parent $MyInvocation.MyCommand.Definition) -Recurse -Filter '*.psm1' | ForEach-Object { $_.FullName } | ForEach-Object { Import-Module $_ -Force }
-    #endregion Import all module helpers
-
     #region Initialize deployment service
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
     $deploymentService = [ARMDeploymentService]::new()
     #endregion Initialize deployment service
   }
   process {
-    Write-PipelineLogger -LogType "info" -Message "New-AzOpsDeployment processing"
+    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment processing"
 
     #region Resolve Scope
     try {
