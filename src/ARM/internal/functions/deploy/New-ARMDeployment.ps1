@@ -107,7 +107,10 @@ function New-ARMDeployment {
     [switch] $ValidateWhatIf,
 
     [Parameter(Mandatory = $false)]
-    [switch] $TearDownEnvironment
+    [switch] $TearDownEnvironment,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $RemoveDeploymentHistory
   )
 
   begin {
@@ -173,8 +176,8 @@ function New-ARMDeployment {
       if (-not ($TeardownEnvironment.IsPresent)) {
         if ($Validate.IsPresent) {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Processing"
-          if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Create')) {
-            return $deploymentService.ExecuteValidation(
+          if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
+            $deploymentService.ExecuteValidation(
               $scopeObject,
               $templateObj,
               $templateParameterObj,
@@ -183,8 +186,8 @@ function New-ARMDeployment {
           }
         } elseif ($ValidateWhatIf.IsPresent) {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Processing"
-          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'Create')) {
-            return $deploymentService.ExecuteValidationWhatIf(
+          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'ValidateWhatIf')) {
+            $deploymentService.ExecuteValidationWhatIf(
               $scopeObject,
               $templateObj,
               $templateParameterObj,
@@ -195,17 +198,36 @@ function New-ARMDeployment {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Processing"
 
           if ($PSCmdlet.ShouldProcess("ARM Deployment [$scope]", 'Create')) {
-            return $deploymentService.ExecuteDeployment(
+            $deployment = $deploymentService.ExecuteDeployment(
               $scopeObject,
               $templateObj,
               $templateParameterObj,
               $DefaultDeploymentRegion
             )
+
+            Write-Host ($deployment | Out-String) -NoNewline
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Completed"
+          }
+
+          if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Removing.DeploymentHistory"
+            if ($PSCmdlet.ShouldProcess("Remove Deployment History [$scope]", 'Remove')) {
+              $cleanup = $deploymentService.RemoveDeploymentHistory(
+                $scopeObject,
+                $deployment
+              )
+
+              if ($cleanup -eq "true") {
+                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Removing.DeploymentHistory.Success"
+              } else {
+                Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Removing.DeploymentHistory.Failed" -NoFailOnError
+              }
+            }
           }
         }
       } elseif ($TeardownEnvironment.IsPresent) {
         Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Processing"
-        if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$scope]", 'Create')) {
+        if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$scope]", 'Destroy')) {
           $rgFound = $deploymentService.GetResourceGroup(
             $scopeObject
           )

@@ -60,7 +60,7 @@ function Write-PipelineLogger {
       $message = "$(Get-PipelineLoggerTimeStamp) [warning]: $Message"
     } elseif ($LogType -eq "success") {
       $color = "green"
-      $message = ""##[section]$(Get-PipelineLoggerTimeStamp) [success]: $Message""
+      $message = "##[section]$(Get-PipelineLoggerTimeStamp) [success]: $Message"
     } else {
       Throw "Invalid Log Type selected."
     }

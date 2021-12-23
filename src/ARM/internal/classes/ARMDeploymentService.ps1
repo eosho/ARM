@@ -392,6 +392,27 @@ class ARMDeploymentService : IDeploymentService {
     return $deploymentDetails
   }
 
+  # Clean up deployment history
+  hidden [object] RemoveDeploymentHistory([PSObject] $ScopeObject, [object] $Deployment) {
+    $removeHistory = $null
+
+    switch ($ScopeObject.Type) {
+      "resourcegroups" {
+        Write-PipelineLogger -LogType "info" -Message "Cleaning resourceGroup level deployment history"
+        $removeHistory = Remove-AzResourceGroupDeployment -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.DeploymentName
+      }
+      "subscriptions" {
+        Write-PipelineLogger -LogType "info" -Message "Cleaning subscription level deployment history"
+        $removeHistory = Remove-AzDeployment -Name $Deployment.DeploymentName -SubscriptionId $ScopeObject.SubscriptionId
+      }
+      Default {
+        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
+      }
+    }
+
+    return $removeHistory
+  }
+
   # Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
