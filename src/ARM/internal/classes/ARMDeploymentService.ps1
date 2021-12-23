@@ -53,68 +53,10 @@ class ARMDeploymentService {
     }
   }
 
-  # Executes ARM operation for validation
+  # Executes ARM operation for WhatIf validation
   [PSCustomObject] ExecuteValidationWhatIf([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
-    $resultsError = $null
-    $results = $null
-    $bicepTemplate = $null
-
-    if ($DeploymentTemplate.metadata._generator.name -eq 'bicep') {
-      # Detect bicep templates
-      $bicepTemplate = $true
-    }
-
-    # try {
-    #   # call arm whatif validation
-    #   if ($ScopeObject.Type -eq "subscription") {
-    #     $parameters = @{
-    #       'TemplateObject'              = $DeploymentTemplate
-    #       'Location'                    = $Location
-    #       'TemplateParameterObject'     = $deploymentParameters
-    #       'SkipTemplateParameterPrompt' = $true
-    #     }
-
-    #     $results = Get-AzDeploymentWhatIfResult @parameters -ErrorAction Continue -ErrorVariable resultsError
-    #     if ($resultsError) {
-    #       if ($resultsError.exception.InnerException.Message -match 'https://aka.ms/resource-manager-parameter-files' -and $true -eq $bicepTemplate) {
-    #         Write-PipelineLogger -LogType "warning" -Message "Validation failed with the error below: $($resultsError.exception.InnerException.Message)"
-    #       } else {
-    #         Write-PipelineLogger -LogType 'warning' -Message "ExecuteValidationWhatIf failed. Details: $($resultsError.exception.InnerException.Message)"
-    #       }
-    #     } elseif ($results.Error) {
-    #       Write-PipelineLogger -LogType "warning" -Message "ExecuteValidationWhatIf.TemplateError"
-    #     } else {
-    #       Write-PipelineLogger -LogType "success" -Message "$($results | Out-String)"
-    #     }
-    #   } else {
-    #     $parameters = @{
-    #       'TemplateObject'              = $DeploymentTemplate
-    #       'ResourceGroupName '          = $ScopeObject.Name
-    #       'TemplateParameterObject'     = $deploymentParameters
-    #       'SkipTemplateParameterPrompt' = $true
-    #     }
-
-    #     $results = Get-AzResourceGroupDeploymentWhatIfResult @parameters -ErrorAction Continue -ErrorVariable resultsError
-    #     if ($resultsError) {
-    #       if ($resultsError.exception.InnerException.Message -match 'https://aka.ms/resource-manager-parameter-files' -and $true -eq $bicepTemplate) {
-    #         Write-PipelineLogger -LogType "warning" -Message "Validation failed with the error below: $($resultsError.exception.InnerException.Message)"
-    #       } else {
-    #         Write-PipelineLogger -LogType 'warning' -Message "ExecuteValidationWhatIf failed. Details: $($resultsError.exception.InnerException.Message)"
-    #       }
-    #     } elseif ($results.Error) {
-    #       Write-PipelineLogger -LogType "warning" -Message "ExecuteValidationWhatIf.TemplateError"
-    #     } else {
-    #       Write-PipelineLogger -LogType "success" -Message "$($results | Out-String)"
-    #     }
-    #   }
-    #   return $results
-    # } catch {
-    #   throw $_.Exception.Message
-    # }
-
-    # via rest api
     try {
-      # call arm validation
+      # call arm whatIf validation
       $whatIfValidation = $this.InvokeARMOperation(
         $ScopeObject,
         $DeploymentTemplate,
@@ -124,11 +66,15 @@ class ARMDeploymentService {
       )
 
       # Did the validation succeed?
-      if ($whatIfValidation.error.code -eq "InvalidTemplateDeployment") {
-        # Throw an exception and pass the exception message from the ARM validation
-        Throw ("WhatIf Validation failed with the error below: {0}" -f (ConvertTo-Json $whatIfValidation -Depth 50))
+      if (($whatIfValidation.StatusMessage) -or ($whatIfValidation -like "*error*")) {
+        # Throw an exception and pass the exception message from the ARM whatIf validation
+        Throw ("WhatIf Validation failed with the error below: {0}" -f $($whatIfValidation))
       } else {
-        Write-PipelineLogger -LogType "success" -Message "WhatIf Deployment validation passed"
+        $beforeChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "before" | ConvertTo-Json -Depth 99
+        $afterChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "after" | ConvertTo-Json -Depth 99
+        Write-PipelineLogger -LogType "info" -Message "WhatIf Validation passed"
+        Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - before: $($beforeChanges)"
+        Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - after: $($afterChanges)"
       }
 
       return $whatIfValidation
@@ -136,7 +82,6 @@ class ARMDeploymentService {
       throw $_.Exception.Message
     }
   }
-
 
   # Generate a new guid for deployment name
   hidden [string] GenerateUniqueDeploymentName() {
@@ -190,18 +135,18 @@ class ARMDeploymentService {
 
         # Call REST API to start the deployment
         try {
-          $deployment = (Invoke-ARMRestMethod -Method $method -Uri $uri -Body $requestBody).InvokeResult
+          $deployment = $this.InvokeARMRestMethod($method, $uri, $requestBody)
         } catch {
           throw $_.Exception.Message
         }
 
         # wait for arm deployment
-        if ($null -ne $deployment.Id -and $operation -eq "deploy") {
+        if ($null -ne $deployment.InvokeResult.Id -and $operation -eq "deploy") {
           Write-PipelineLogger -LogType "info" -Message "Running a deployment..."
-          Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.properties.provisioningState) ]"
+          Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.InvokeResult.properties.provisioningState) ]"
 
           $deploymentDetails = $this.WaitForDeploymentToComplete(
-            $deployment,
+            $($deployment.InvokeResult),
             $this.isSubscriptionDeployment
           )
 
@@ -210,9 +155,13 @@ class ARMDeploymentService {
           } else {
             Write-PipelineLogger -LogType "success" -Message "Deployment completed successfully"
           }
+        } elseif ($operation -eq "validateWhatIf") {
+          Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
+          # get async operation details here
+          $deploymentDetails = $this.GetAsyncOperationStatus($deployment)
         }
-        return $deploymentDetails
 
+        return $deploymentDetails
       } catch {
         # For deploy operation, the error is due malformed or incorrect inputs
         if ($operation -eq "deploy") {
@@ -392,6 +341,140 @@ class ARMDeploymentService {
       $null = Set-AzContext $ScopeObject.SubscriptionId -Scope Process -ErrorAction Stop
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
+    }
+  }
+
+  # Get a token to work against the ARM API
+  [PSCustomObject] GetARMToken() {
+    $currentAzureContext = Get-AzContext
+    if ($null -eq $currentAzureContext.Subscription.TenantId) {
+      Write-PipelineLogger -LogType "error" -Message "[$($MyInvocation.MyCommand)] - No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
+    }
+
+    $token = Get-AzAccessToken
+
+    return [PSCustomObject]@{
+      AccessToken = $token.Token
+      ExpiresOn   = $token.ExpiresOn
+    }
+  }
+
+  # Get a token to work against the ARM API
+  [PSCustomObject] GetAsyncOperationStatus([PSObject] $HttpResponse) {
+    $status = $null
+    $statusCode = $HttpResponse.StatusCode
+    if ($statusCode -notin @(201, 202)) {
+      Write-PipelineLogger -LogType "error" -Message "HTTP response status code must be either '201' or '202' to indicate an asynchronous operation."
+    }
+
+    #region Extracts the HTTP response headers of the asynchronous operation.
+    $retryAfter = $HttpResponse.ResponseHeader.'Retry-After' | Out-String
+    $azureAsyncOperation = $HttpResponse.ResponseHeader.'Azure-AsyncOperation' | Out-String
+    $location = $HttpResponse.ResponseHeader.'Location' | Out-String
+
+    if (-not ($retryAfter -and ($azureAsyncOperation -or $location))) {
+      Write-PipelineLogger -LogType "error" -Message "HTTP response does not contain required headers 'Retry-After' and either 'Azure-AsyncOperation' or 'Location'."
+    }
+
+    if ($azureAsyncOperation) {
+      $statusUrl = $azureAsyncOperation
+    } else {
+      $statusUrl = $location
+    }
+
+    try {
+      #region Monitors the status of the asynchronous operation.
+      $retries = 0
+      $maxRetries = 100
+      do {
+        Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
+        $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "")
+        if ($HttpResponse) {
+          $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
+        }
+
+        if ($azureAsyncOperation) {
+          if ($status -eq "Succeeded") {
+            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
+            break
+          } elseif ($status -in "Failed", "Canceled") {
+            Write-PipelineLogger -LogType "error" -Message "The asynchronous operation has failed."
+            break
+          }
+        } elseif ($location) {
+          if ($HttpResponse.StatusCode -eq 200) {
+            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
+            break
+          } elseif ($HttpResponse.StatusCode -ne 202) {
+            Write-PipelineLogger -LogType "warning" -Message "The asynchronous operation has a status code of '202' and is still in progress."
+          }
+        }
+
+        Start-Sleep -Second $retryAfter
+        $retries++
+      } until ($retries -gt $maxRetries)
+
+      if ($retries -gt $maxRetries) {
+        Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
+      }
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "AsyncOperation failed. Details: $($_.Exception.Message)."
+    }
+
+    return $HttpResponse
+  }
+
+  # Get a token to work against the ARM API
+  [PSCustomObject] InvokeARMRestMethod([string] $Method, [string] $Uri, [PSObject] $Body) {
+    $respHeader = $null
+    $invokeResult = $null
+    $errorMessage = $null
+    $statusCode = $null
+
+    $token = $this.GetARMToken()
+
+    $irmArgs = @{
+      Headers                 = @{
+        Authorization = 'Bearer {0}' -f $token.AccessToken
+      }
+      ErrorAction             = 'Continue'
+      Method                  = $Method
+      UseBasicParsing         = $true
+      ResponseHeadersVariable = 'respHeader'
+      StatusCodeVariable      = 'statusCode'
+      Uri                     = $Uri
+    }
+
+    if ($PSBoundParameters.ContainsKey('Body')) {
+      [void] $irmArgs.Add('ContentType', 'application/json')
+      [void] $irmArgs.Add('Body', $Body)
+    }
+
+    try {
+      $invokeResult = Invoke-RestMethod @irmArgs
+    } catch {
+      $errorMessage = $_.ErrorDetails.Message
+      Write-Error -ErrorRecord $_ -ErrorAction Continue
+    }
+
+    $operationId = $null
+    if ($null -ne $respHeader.'x-ms-request-id') {
+      $operationId = $respHeader.'x-ms-request-id'[0]
+    }
+
+    $correlationId = $null
+    if ($null -ne $respHeader.'x-ms-correlation-request-id') {
+      Write-Information -MessageData "[$($MyInvocation.MyCommand)] - Response contains 'CorrelationId' '$($respHeader.'x-ms-correlation-request-id'[0])'"
+      $correlationId = $respHeader.'x-ms-correlation-request-id'[0]
+    }
+
+    return [PSCustomObject]@{
+      InvokeResult   = $invokeResult
+      StatusCode     = $statusCode
+      ResponseHeader = $respHeader
+      OperationId    = $operationId
+      CorrelationId  = $correlationId
+      StatusMessage  = $errorMessage
     }
   }
 
