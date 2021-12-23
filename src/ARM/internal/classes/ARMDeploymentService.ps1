@@ -1,4 +1,64 @@
-class ARMDeploymentService {
+class IDeploymentService {
+  <#
+  * Returns the deployment service.
+  *
+  * @return the deployment service
+  #>
+  [PSCustomObject] ExecuteDeployment(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [PSCustomObject] ExecuteValidation(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [PSCustomObject] ExecuteValidationWhatIf(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [object] InvokeARMOperation(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location,
+    [string] $Operation
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] SetSubscriptionContext([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [object] GetResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] RemoveResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+}
+
+class ARMDeploymentService : IDeploymentService {
   [string] $ArmResourceGroupDeploymentUri
   [string] $ArmSubscriptionDeploymentUri
   [string] $ArmResourceGroupValidationUri
@@ -125,9 +185,7 @@ class ARMDeploymentService {
         # Switch REST Verb based on operation type
         if ($Operation -eq "deploy") {
           $method = "PUT"
-        } elseif ($Operation -eq "validate") {
-          $method = "POST"
-        } elseif ($Operation -eq "validateWhatIf") {
+        } elseif (($Operation -eq "validate") -or ($Operation -eq "validateWhatIf")) {
           $method = "POST"
         } else {
           throw "Invalid operation type"
@@ -345,7 +403,7 @@ class ARMDeploymentService {
   }
 
   # Get a token to work against the ARM API
-  [PSCustomObject] GetARMToken() {
+  hidden [PSCustomObject] GetARMToken() {
     $currentAzureContext = Get-AzContext
     if ($null -eq $currentAzureContext.Subscription.TenantId) {
       Write-PipelineLogger -LogType "error" -Message "[$($MyInvocation.MyCommand)] - No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
@@ -359,8 +417,8 @@ class ARMDeploymentService {
     }
   }
 
-  # Get a token to work against the ARM API
-  [PSCustomObject] GetAsyncOperationStatus([PSObject] $HttpResponse) {
+  # Get the status of an Async operation
+  hidden [PSCustomObject] GetAsyncOperationStatus([PSObject] $HttpResponse) {
     $status = $null
     $statusCode = $HttpResponse.StatusCode
     if ($statusCode -notin @(201, 202)) {
@@ -388,7 +446,7 @@ class ARMDeploymentService {
       $maxRetries = 100
       do {
         Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
-        $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "")
+        $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
         if ($HttpResponse) {
           $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
         }
@@ -424,8 +482,8 @@ class ARMDeploymentService {
     return $HttpResponse
   }
 
-  # Get a token to work against the ARM API
-  [PSCustomObject] InvokeARMRestMethod([string] $Method, [string] $Uri, [PSObject] $Body) {
+  # Invokes a Rest call to azure and adds the token to header parameter
+  hidden [PSCustomObject] InvokeARMRestMethod([string] $Method, [string] $Uri, [PSObject] $Body) {
     $respHeader = $null
     $invokeResult = $null
     $errorMessage = $null
@@ -504,20 +562,6 @@ class ARMDeploymentService {
     }
   }
 
-  # Delete resources in a resource group
-  [void] RemoveResources([PSObject[]] $ResourceToRemove) {
-
-    $ResourceToRemove | ForEach-Object { Write-PipelineLogger -LogType "info" -Message "Removing resource: $($_.ResourceId)" }
-    try {
-      foreach ($resource in $ResourceToRemove) {
-        Remove-AzResource -Id $resource.ResourceId -Force -ErrorAction 'SilentlyContinue'
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResources. Details: $($_.Exception.Message)"
-      throw $_
-    }
-  }
-
   # If there is any resource lock on the existing resource group, we need it cleaned up
   [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
 
@@ -547,7 +591,7 @@ class ARMDeploymentService {
     $this.ArmResourceGroupValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/validate?api-version=2021-04-01"
     $this.ArmSubscriptionValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
 
-    # whatif validation urls
+    # whatIf validation urls
     $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01"
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
