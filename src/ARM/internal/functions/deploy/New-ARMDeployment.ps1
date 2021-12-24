@@ -80,29 +80,35 @@ function New-ARMDeployment {
 
   [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
   [CmdletBinding(SupportsShouldProcess = $true)]
+  [Alias("Invoke-ARMDeployment")]
   param (
-    [Parameter()]
+    [Parameter(Mandatory = $true)]
+    [Alias('TemplatePath')
     [string] $TemplateFilePath,
 
-    [Parameter()]
+    [Parameter(Mandatory = $true)]
+    [Alias('ParameterPath')
     [string] $TemplateParameterFilePath,
 
-    [Parameter(ParameterSetName = "scope")]
+    [Parameter(Mandatory = $true, ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription")]
     [string] $Scope,
 
-    [Parameter()]
+    [Parameter(Mandatory = $false)]
+    [Alias('RGName')
     [string] $ResourceGroupName,
 
     [Parameter(Mandatory = $false)]
+    [Alias('SubId')
     [string] $SubscriptionId = (Get-AzContext).Subscription.Id,
 
-    [string] $DefaultDeploymentRegion = "West US",
+    [Parameter(Mandatory = $false)]
+    [Alias('Location')
+    [string] $DefaultDeploymentRegion = "EastUS",
 
     [Parameter(Mandatory = $false)]
     [switch] $Validate,
 
-    # TODO: WIP?
     [Parameter(Mandatory = $false)]
     [switch] $ValidateWhatIf,
 
@@ -122,40 +128,18 @@ function New-ARMDeployment {
     #endregion Initialize deployment service
   }
   process {
-    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment processing"
-
-    #region Resolve Scope
-    try {
-      switch ($Scope) {
-        'resourcegroup' {
-          $scopeObject = New-ARMScope -Scope $scope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
-        }
-        'subscription' {
-          $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
-        }
-        default {
-          throw "Invalid scope. Valid scopes are resourcegroup and subscription"
-        }
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)" -ErrorAction Stop
-    }
-
-    if (-not $scopeObject) {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Empty" -ErrorAction Stop
-    }
-    #endregion Resolve Scope
-
     #region set subscription context
     Set-ARMContext -Scope $scopeObject -ErrorAction Stop
     #endregion set subscription context
+
+    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment processing"
 
     #region Parse Content
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Resolving.TemplateFilePath"
     if (Test-Path -Path $TemplateFilePath) {
       $templateObj = Get-TemplateType -TemplateFilePath $TemplateFilePath
     } else {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.Content.TemplateFilePath.NotFound" -ErrorAction Stop
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.Content.TemplateFilePath.NotFound"
       return
     }
     #endregion Parse Content
@@ -164,12 +148,42 @@ function New-ARMDeployment {
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Resolving.TemplateParameterFilePath"
     if (Test-Path -Path $TemplateParameterFilePath) {
       $templateParameterObj = Get-Content -Path $TemplateParameterFilePath -Raw | ConvertFrom-Json -Depth 99
-    } elseif ($TemplateParameterObject) {
-      $templateParameterObj = $TemplateParameterObject | ConvertTo-Json -Depth 99
     } else {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameters.TemplateParameterFilePath.NotFound" -ErrorAction Stop
     }
     #endregion Resolve template parameters
+
+    #region Resolve Scope
+    try {
+      switch ($Scope) {
+        'resourcegroup' {
+          if ($templateObj.'$schema' -match '\/deploymentTemplate.json#$') {
+            $scopeObject = New-ARMScope -Scope $scope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope resourcegroup."
+            return
+          }
+        }
+        'subscription' {
+          if ($templateObj.'$schema' -match '\/subscriptionDeploymentTemplate.json#$') {
+            $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope subscription."
+            return
+          }
+        }
+        default {
+          throw "Invalid scope. Valid scopes are resourcegroup and subscription"
+        }
+      }
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)" 
+    }
+
+    if (-not $scopeObject) {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Empty" -ErrorAction Stop
+    }
+    #endregion Resolve Scope
 
     #region deployment stage
     try {
@@ -247,10 +261,10 @@ function New-ARMDeployment {
           }
         }
       } else {
-        Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported" -ErrorAction Stop
+        Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running Invoke-ARMDeployment. Details: $($_.Exception.Message)" -ErrorAction Stop
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running Invoke-ARMDeployment. Details: $($_.Exception.Message)"
     }
     #endregion deployment stage
     #endregion Process Scope
