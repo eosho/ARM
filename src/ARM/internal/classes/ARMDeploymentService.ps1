@@ -284,6 +284,9 @@ class ARMDeploymentService {
 
   # Get ARM deployment operation
   hidden [object] GetDeploymentOperation([PSObject] $ScopeObject, [object] $Deployment) {
+    # set the URL's from Discovery REST API call
+    $this.SetAzureManagementUrls()
+
     switch ($ScopeObject.Type) {
       "resourcegroups" {
         Write-PipelineLogger -LogType "info" -Message "Getting resourceGroup level deployment operation status"
