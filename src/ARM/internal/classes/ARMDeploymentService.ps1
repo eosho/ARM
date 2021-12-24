@@ -5,6 +5,8 @@ class ARMDeploymentService {
   [string] $ArmSubscriptionValidationUri
   [string] $ArmResourceGroupWhatIfValidationUri
   [string] $ArmSubscriptionWhatIfValidationUri
+  [string] $ArmResourceGroupDeploymentOperationUri
+  [string] $ArmSubscriptionDeploymentOperationUri 
 
   [bool] $IsSubscriptionDeployment = $false
 
@@ -151,6 +153,8 @@ class ARMDeploymentService {
           $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
           if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
 
+#ADD HERE
+
             # If the deployment fails, get the deployment details via Get-AzResourceGroupDeploymentOperation or Get-AzDeploymentOperation. TODO: Use REST API
             $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
             Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
@@ -280,6 +284,35 @@ class ARMDeploymentService {
         Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
       }
     }
+    return $uri
+  }
+
+  # Get ARM deployment operation
+  hidden [object] GetDeploymentOperation([PSObject] $ScopeObject, [object] $Deployment) {
+    switch ($ScopeObject.Type) {
+      "resourcegroups" {
+        Write-PipelineLogger -LogType "info" -Message "Getting resourceGroup level deployment operation status"
+        $url = $this.ArmResourceGroupDeploymentOperationUri
+        
+        # construct the uri using the format for armSubscriptionDeploymentOperationUri
+        $uri = $uri -f $ScopeObject.Name, $Deployment.OperationId
+      }
+      "subscriptions" {
+        Write-PipelineLogger -LogType "info" -Message "Getting subscription level deployment operation status"
+        $url = $this.ArmSubscriptionDeploymentOperationUri
+
+        # construct the uri using the format for armResourceGroupDeploymentOperationUri
+        $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $Deployment.OperationId
+      }
+      Default {
+        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
+      }
+    }
+
+    if ($null -eq $uri) {
+      Write-PipelineLogger -LogType "error" -Message "Failed to construct the deployment operation uri"
+    }
+ 
     return $uri
   }
 
@@ -507,5 +540,9 @@ class ARMDeploymentService {
     # whatIf validation urls
     $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01"
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
+
+    # deployment operation urls
+    $this.ArmResourceGroupDeploymentOperationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/deployments/{2}/operations/{3}?api-version=2021-04-01"
+    $this.ArmSubscriptionDeploymentOperationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/operations/{2}?api-version=2021-04-01"
   }
 }
