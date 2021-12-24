@@ -151,20 +151,15 @@ class ARMDeploymentService {
           $deploymentDetails = $null
 
           $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
+          $deploymentOperationUrl = $this.GetDeploymentOperation($ScopeObject, $Deployment)
+            
+          # Get the deployment details via REST API
+          $deploymentDetails = $this.InvokeARMRestMethod("GET", $deploymentOperationUrl, "") | Where-Object { $_.InvokeResult.status -eq "Failed" }
+           
           if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
-
-#ADD HERE
-
-            # If the deployment fails, get the deployment details via Get-AzResourceGroupDeploymentOperation or Get-AzDeploymentOperation. TODO: Use REST API
-            $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.InvokeResult.status)" -NoFailOnError
             Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
             Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from resource group deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
-          } elseif ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $true) {
-            $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
-            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
-            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from subscription deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
           } elseif ($currentDeployment.InvokeResult.status -eq "Succeeded") {
             Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
             $deploymentDetails = $currentDeployment
@@ -295,14 +290,14 @@ class ARMDeploymentService {
         $url = $this.ArmResourceGroupDeploymentOperationUri
         
         # construct the uri using the format for armSubscriptionDeploymentOperationUri
-        $uri = $uri -f $ScopeObject.Name, $Deployment.OperationId
+        $uri = $uri -f $ScopeObject.Name, $Deployment.InvokeResult.name, $Deployment.OperationId
       }
       "subscriptions" {
         Write-PipelineLogger -LogType "info" -Message "Getting subscription level deployment operation status"
         $url = $this.ArmSubscriptionDeploymentOperationUri
 
         # construct the uri using the format for armResourceGroupDeploymentOperationUri
-        $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $Deployment.OperationId
+        $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $Deployment.InvokeResult.name, $Deployment.OperationId
       }
       Default {
         Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
