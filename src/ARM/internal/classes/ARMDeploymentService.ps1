@@ -94,8 +94,9 @@ class ARMDeploymentService {
   [object] InvokeARMOperation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location, [string] $Operation) {
 
     $deploymentDetails = $null
+    $currentDeployment = $null
 
-    # Check for invariant
+    # Check for deployment temple exists
     if ([string]::IsNullOrEmpty($DeploymentTemplate)) {
       Write-PipelineLogger -LogType "error" -Message "DeploymentTemplate cannot be null or empty"
       throw "Deployment template contents cannot be empty"
@@ -141,21 +142,17 @@ class ARMDeploymentService {
         }
 
         # wait for arm deployment
-        if ($null -ne $deployment.InvokeResult.Id -and $operation -eq "deploy") {
+        if ($null -ne $deployment.InvokeResult -and $operation -eq "deploy") {
           Write-PipelineLogger -LogType "info" -Message "Running a deployment..."
           Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.InvokeResult.properties.provisioningState) ]"
           Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($deployment.StatusCode) ]"
 
-          # Wait for the async deployment operation to complete
-          $currentDeployment = $null
-          $deploymentDetails = $null
-
-          $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
-          $deploymentOperationUrl = $this.GetDeploymentOperation($ScopeObject, $Deployment)
-            
           # Get the deployment details via REST API
-          $deploymentDetails = $this.InvokeARMRestMethod("GET", $deploymentOperationUrl, "") | Where-Object { $_.InvokeResult.status -eq "Failed" }
-           
+          $deploymentOperationUrl = $this.GetDeploymentOperation($ScopeObject, $Deployment)
+          $deploymentDetails = $this.InvokeARMRestMethod("GET", $deploymentOperationUrl, "")
+          
+          # Wait for the async deployment operation to complete
+          $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
           if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
             Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.InvokeResult.status)" -NoFailOnError
             Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
