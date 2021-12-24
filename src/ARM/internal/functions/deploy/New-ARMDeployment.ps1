@@ -83,11 +83,11 @@ function New-ARMDeployment {
   [Alias("Invoke-ARMDeployment")]
   param (
     [Parameter(Mandatory = $true)]
-    [Alias('TemplatePath')
+    [Alias('TemplatePath')]
     [string] $TemplateFilePath,
 
     [Parameter(Mandatory = $true)]
-    [Alias('ParameterPath')
+    [Alias('ParameterPath')]
     [string] $TemplateParameterFilePath,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
@@ -95,15 +95,15 @@ function New-ARMDeployment {
     [string] $Scope,
 
     [Parameter(Mandatory = $false)]
-    [Alias('RGName')
+    [Alias('RGName')]
     [string] $ResourceGroupName,
 
     [Parameter(Mandatory = $false)]
-    [Alias('SubId')
+    [Alias('SubId')]
     [string] $SubscriptionId = (Get-AzContext).Subscription.Id,
 
     [Parameter(Mandatory = $false)]
-    [Alias('Location')
+    [Alias('Location')]
     [string] $DefaultDeploymentRegion = "EastUS",
 
     [Parameter(Mandatory = $false)]
@@ -128,18 +128,6 @@ function New-ARMDeployment {
     #endregion Initialize deployment service
   }
   process {
-    #region set subscription context
-    try{
-      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Subscription.Context.Initializing"
-      Set-ARMContext -Scope $scopeObject -ErrorAction Stop
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Subscription.Context.Failed. Details: $($_.Exception.Message)"
-      return
-    }
-
-    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Subscription.Context.Initialized"
-    #endregion set subscription context
-
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Processing"
 
     #region Parse Content
@@ -167,7 +155,7 @@ function New-ARMDeployment {
       Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ScopeObject.Create"
       switch ($Scope) {
         'resourcegroup' {
-          if ($templateObj.'$schema' -match '\/deploymentTemplate.json#$') {
+          if ($templateObj.'$schema' -match [regex]::Escape('deploymentTemplate.json')) {
             $scopeObject = New-ARMScope -Scope $scope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope resourcegroup."
@@ -175,7 +163,7 @@ function New-ARMDeployment {
           }
         }
         'subscription' {
-          if ($templateObj.'$schema' -match '\/subscriptionDeploymentTemplate.json#$') {
+          if ($templateObj.'$schema'  -match [regex]::Escape('subscriptionDeploymentTemplate.json')) {
             $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope subscription."
@@ -187,7 +175,7 @@ function New-ARMDeployment {
         }
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)" 
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)"
     }
 
     Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ScopeObject.Successful"
@@ -197,6 +185,18 @@ function New-ARMDeployment {
       return
     }
     #endregion Resolve Scope
+
+    #region set subscription context
+    try{
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Subscription.Context.Initializing"
+      Set-ARMContext -Scope $scopeObject -ErrorAction Stop
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Subscription.Context.Failed. Details: $($_.Exception.Message)"
+      return
+    }
+
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Subscription.Context.Initialized"
+    #endregion set subscription context
 
     #region deployment stage
     try {
@@ -232,7 +232,6 @@ function New-ARMDeployment {
               $DefaultDeploymentRegion
             )
 
-            Write-Host ($deployment | Out-String) -NoNewline
             Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Completed"
           }
 
@@ -283,7 +282,7 @@ function New-ARMDeployment {
     #endregion Process Scope
 
     #region completed
-    Write-PipelineLogger -LogType "success" -Message "New-AzOpsDeployment.Completed"
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Completed"
     #endregion completed
   }
 

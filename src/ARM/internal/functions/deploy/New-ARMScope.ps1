@@ -27,15 +27,18 @@ function New-ARMScope {
   #>
   [OutputType([ARMDeploymentScope])]
   [CmdletBinding(SupportsShouldProcess = $true)]
+  [Alias("Set-ARMScope")]
   param (
     [Parameter(ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription")]
     [string] $Scope,
 
     [Parameter()]
+    [Alias('RGName')]
     [string] $ResourceGroupName,
 
     [Parameter(Mandatory = $false)]
+    [Alias('SubId')]
     [string] $SubscriptionId = (Get-AzContext).Subscription.Id
   )
 
