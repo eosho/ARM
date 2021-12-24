@@ -129,10 +129,18 @@ function New-ARMDeployment {
   }
   process {
     #region set subscription context
-    Set-ARMContext -Scope $scopeObject -ErrorAction Stop
+    try{
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Subscription.Context.Initializing"
+      Set-ARMContext -Scope $scopeObject -ErrorAction Stop
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Subscription.Context.Failed. Details: $($_.Exception.Message)"
+      return
+    }
+
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Subscription.Context.Initialized"
     #endregion set subscription context
 
-    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment processing"
+    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Processing"
 
     #region Parse Content
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Resolving.TemplateFilePath"
@@ -149,12 +157,14 @@ function New-ARMDeployment {
     if (Test-Path -Path $TemplateParameterFilePath) {
       $templateParameterObj = Get-Content -Path $TemplateParameterFilePath -Raw | ConvertFrom-Json -Depth 99
     } else {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameters.TemplateParameterFilePath.NotFound" -ErrorAction Stop
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameters.TemplateParameterFilePath.NotFound"
+      return
     }
     #endregion Resolve template parameters
 
     #region Resolve Scope
     try {
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ScopeObject.Create"
       switch ($Scope) {
         'resourcegroup' {
           if ($templateObj.'$schema' -match '\/deploymentTemplate.json#$') {
@@ -180,8 +190,11 @@ function New-ARMDeployment {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)" 
     }
 
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ScopeObject.Successful"
+
     if (-not $scopeObject) {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Empty" -ErrorAction Stop
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Empty"
+      return
     }
     #endregion Resolve Scope
 
