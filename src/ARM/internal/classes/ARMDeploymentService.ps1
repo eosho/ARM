@@ -204,13 +204,32 @@ class ARMDeploymentService : IDeploymentService {
           Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.InvokeResult.properties.provisioningState) ]"
           Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($deployment.StatusCode) ]"
 
-          $deploymentDetails = $this.WaitForDeploymentToComplete(
-            $deployment,
-            $this.isSubscriptionDeployment,
-            $scopeObject
-          )
+          # Wait for the async deployment operation to complete
+          $currentDeployment = $null
+          $deploymentDetails = $null
+
+          $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
+          if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
+
+            # If the deployment fails, get the deployment details via Get-AzResourceGroupDeploymentOperation or Get-AzDeploymentOperation. TODO: Use REST API
+            $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from resource group deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
+          } elseif ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $true) {
+            $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from subscription deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
+          } elseif ($currentDeployment.InvokeResult.status -eq "Succeeded") {
+            Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
+            $deploymentDetails = $currentDeployment
+          } else {
+            Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has an unknown error" -NoFailOnError
+          }
         } elseif ($operation -eq "validateWhatIf") {
           Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
+          
           # get async operation details here
           $deploymentDetails = $this.GetAsyncOperationStatus($deployment)
         }
@@ -322,36 +341,6 @@ class ARMDeploymentService : IDeploymentService {
       }
     }
     return $uri
-  }
-
-  # Wait for the deployment to complete
-  hidden [object] WaitForDeploymentToComplete([object] $Deployment, [bool] $IsSubscriptionDeployment, [PSObject] $ScopeObject) {
-
-    $currentDeployment = $null
-    $deploymentDetails = $null
-
-    $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
-
-    if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
-
-      # If the deployment fails, get the deployment details via Get-AzResourceGroupDeploymentOperation or Get-AzDeploymentOperation
-      $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from resource group deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
-    } elseif ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $true) {
-      $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from subscription deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
-    } elseif ($currentDeployment.InvokeResult.status -eq "Succeeded") {
-      Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
-      $deploymentDetails = $currentDeployment
-    } else {
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has an unknown error" -NoFailOnError
-    }
-
-    return $deploymentDetails
   }
 
   # Clean up deployment history
