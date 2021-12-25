@@ -362,10 +362,13 @@ class ARMDeploymentService {
     }
 
     #region Monitors the status of the asynchronous operation.
+    $wait = 10
     $retries = 0
     $maxRetries = 100
     do {
-      Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
+      $retries++
+
+      Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries) ]"
       $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
       if ($HttpResponse) {
         $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
@@ -373,6 +376,14 @@ class ARMDeploymentService {
 
       Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($HttpResponse.InvokeResult.status) ]"
       Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($HttpResponse.StatusCode) ]"
+
+      # Increment the phase number after 10 loops
+      if ($retries % 10 -eq 0) {
+        # let's increase the wait time
+        $wait = ($wait * 2)
+
+        Write-PipelineLogger -LogType "debug" -Message "New wait time: $wait seconds"
+      }
 
       if ($azureAsyncOperation) {
         if ($status -eq "Succeeded") {
@@ -393,8 +404,7 @@ class ARMDeploymentService {
         }
       }
 
-      Start-Sleep -Second 10
-      $retries++
+      Start-Sleep -Second $wait
     } until ($retries -gt $maxRetries)
 
     if ($retries -gt $maxRetries) {
