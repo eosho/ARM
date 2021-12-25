@@ -147,16 +147,15 @@ class ARMDeploymentService {
             $scopeObject
           )
         } elseif ($operation -eq "validateWhatIf") {
-           Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
-           
-           # get async operation details here
-           $deploymentDetails = $this.GetAsyncOperationStatus($deployment)
+          Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
+
+          # get async operation details here
+          $deploymentDetails = $this.GetAsyncOperationStatus($deployment)
         }
         return $deploymentDetails
       } catch {
         # For deploy operation, the error is due malformed or incorrect inputs
         if ($operation -eq "deploy") {
-          Write-PipelineLogger -LogType "error" -Message "An Exception Occurred While Invoking the Deployment. Please see the error below: $($_.Exception.Message)"
           throw $_.Exception.Message
         }
         # For validate operation, the error is due to validation failure
@@ -219,7 +218,7 @@ class ARMDeploymentService {
     $this.SetAzureManagementUrls()
 
     # Subscription level deployment or resource group level deployment - lets construct the uri
-    if ($ScopeObject.Type -eq "subscription") {
+    if ($ScopeObject.Type -eq "subscriptions") {
       Write-PipelineLogger -LogType "info" -Message "Detected a subscription level deployment"
 
       if ($operation -eq "deploy") {
@@ -264,13 +263,14 @@ class ARMDeploymentService {
     $deploymentDetails = $null
 
     $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
-    
+
+    Write-PipelineLogger -LogType "info" -Message "Obtaining deployment details..."
     switch ($ScopeObject.Type) {
-     "resourcegroups" {
-       $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
+      "resourcegroups" {
+        $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name
       }
       "subscriptions" {
-        $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
+        $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name
       }
       Default {
         Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
@@ -282,46 +282,15 @@ class ARMDeploymentService {
       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from deployment: $($deploymentDetails.StatusMessage)"
     } elseif ($currentDeployment.InvokeResult.status -eq "Succeeded") {
-       Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
-       Write-PipelineLogger -LogType "success" -Message "Provisioned: [ $($deploymentDetails.ResourceType) ] with Resource ID : [ $($deploymentDetails.ResourceId) ]"
-       $deploymentDetails = $currentDeployment
+      Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
+      $resourceDetails = Get-AzResource | Where-Object { $_.Name -eq $deploymentDetails[0].TargetResource.Split("/")[-1] }
+      Write-PipelineLogger -LogType "success" -Message "Provisioned: [ $($resourceDetails.ResourceType) ] with Resource ID : [ $($resourceDetails.ResourceId) ]"
+      $deploymentDetails = $currentDeployment
     } else {
-       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has an unknown error"
+      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has an unknown error"
     }
 
     return $deploymentDetails
-  }
-
-  # Get ARM deployment operation
-  hidden [object] GetDeploymentOperation([PSObject] $ScopeObject, [object] $Deployment) {
-    # set the URL's from Discovery REST API call
-    $this.SetAzureManagementUrls()
-
-    switch ($ScopeObject.Type) {
-      "resourcegroups" {
-        Write-PipelineLogger -LogType "info" -Message "Getting resourceGroup level deployment operation status"
-        $url = $this.ArmResourceGroupDeploymentOperationUri
-        
-        # construct the uri using the format for armSubscriptionDeploymentOperationUri
-        $uri = $uri -f $ScopeObject.Name, $Deployment.InvokeResult.name, $Deployment.OperationId
-      }
-      "subscriptions" {
-        Write-PipelineLogger -LogType "info" -Message "Getting subscription level deployment operation status"
-        $url = $this.ArmSubscriptionDeploymentOperationUri
-
-        # construct the uri using the format for armResourceGroupDeploymentOperationUri
-        $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $Deployment.InvokeResult.name, $Deployment.OperationId
-      }
-      Default {
-        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
-      }
-    }
-
-    if ($null -eq $uri) {
-      Write-PipelineLogger -LogType "error" -Message "Failed to construct the deployment operation uri"
-    }
- 
-    return $uri
   }
 
   # Clean up deployment history
@@ -392,46 +361,44 @@ class ARMDeploymentService {
       $statusUrl = $location
     }
 
-    try {
-      #region Monitors the status of the asynchronous operation.
-      $retries = 0
-      $maxRetries = 100
-      do {
-        Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
-        $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
-        if ($HttpResponse) {
-          $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
-        }
-
-        Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($HttpResponse.InvokeResult.status) ]"
-        Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($HttpResponse.StatusCode) ]"
-
-        if ($azureAsyncOperation) {
-          if ($status -eq "Succeeded") {
-            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
-            break
-          } elseif ($status -in "Failed", "Canceled") {
-            Write-PipelineLogger -LogType "error" -Message "The asynchronous operation has failed."
-            break
-          }
-        } elseif ($location) {
-          if ($HttpResponse.StatusCode -eq 200) {
-            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
-            break
-          } elseif ($HttpResponse.StatusCode -ne 202) {
-            Write-PipelineLogger -LogType "warning" -Message "The asynchronous operation has a status code of '202' and is still in progress."
-          }
-        }
-
-        Start-Sleep -Second 10
-        $retries++
-      } until ($retries -gt $maxRetries)
-
-      if ($retries -gt $maxRetries) {
-        Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
+    #region Monitors the status of the asynchronous operation.
+    $retries = 0
+    $maxRetries = 100
+    do {
+      Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
+      $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
+      if ($HttpResponse) {
+        $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
       }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "AsyncOperation failed. Details: $($_.Exception.Message)."
+
+      Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($HttpResponse.InvokeResult.status) ]"
+      Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($HttpResponse.StatusCode) ]"
+
+      if ($azureAsyncOperation) {
+        if ($status -eq "Succeeded") {
+          Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
+          break
+        } elseif ($status -in "Failed", "Canceled") {
+          Write-PipelineLogger -LogType "error" -Message "Error Code: $($httpResponse.InvokeResult.error.details.code)" -NoFailOnError
+          Write-PipelineLogger -LogType "error" -Message "Error Message: $($httpResponse.InvokeResult.error.message)" -NoFailOnError
+          Write-PipelineLogger -LogType "error" -Message "Error Details: $($httpResponse.InvokeResult.error.details.message)"
+          break
+        }
+      } elseif ($location) {
+        if ($HttpResponse.StatusCode -eq 200) {
+          Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
+          break
+        } elseif ($HttpResponse.StatusCode -ne 202) {
+          Write-PipelineLogger -LogType "warning" -Message "The asynchronous operation has a status code of '202' and is still in progress."
+        }
+      }
+
+      Start-Sleep -Second 10
+      $retries++
+    } until ($retries -gt $maxRetries)
+
+    if ($retries -gt $maxRetries) {
+      Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
     }
 
     return $HttpResponse

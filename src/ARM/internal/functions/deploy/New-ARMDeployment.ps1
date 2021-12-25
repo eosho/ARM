@@ -276,7 +276,7 @@ function New-ARMDeployment {
         Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running Invoke-ARMDeployment. Details: $($_.Exception.Message)"
+      throw "$($_.Exception.Message)"
     }
     #endregion deployment stage
     #endregion Process Scope
