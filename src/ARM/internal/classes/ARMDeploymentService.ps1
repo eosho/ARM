@@ -277,7 +277,7 @@ class ARMDeploymentService {
       }
     }
 
-    if (($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) {
+    if (($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Cancelled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) {
       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
       Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from deployment: $($deploymentDetails.StatusMessage)"
