@@ -203,7 +203,7 @@ class ARMDeploymentService {
 
     Write-PipelineLogger -LogType "debug" -Message "Operation scope: [ $($ScopeObject.Type) ] Operation: [ $operation ]"
 
-    # set the URL's from Discovery REST API call
+    # set the URL's from discovery REST API call
     $this.SetAzureManagementUrls()
 
     # Subscription level deployment or resource group level deployment - lets construct the uri
@@ -220,8 +220,8 @@ class ARMDeploymentService {
         throw "Invalid operation type"
       }
 
-      # construct the uri using the format for armSubscriptionDeploymentUri
-      $uri = $uri -f $ScopeObject.Name, $uniqueDeploymentName
+      # construct the uri using the format for armSubscriptionDeploymentUri or armSubscriptionValidationUri or armSubscriptionWhatIfValidationUri
+      $uri = $uri -f $ScopeObject.SubscriptionId, $uniqueDeploymentName
     } else {
       Write-PipelineLogger -LogType "info" -Message "Detected a resourceGroup level deployment"
 
@@ -235,13 +235,14 @@ class ARMDeploymentService {
         throw "Invalid operation type"
       }
 
-      # construct the uri using the format for armResourceGroupDeploymentUri
+      # construct the uri using the format for armResourceGroupDeploymentUri or armResourceGroupValidationUri or armResourceGroupWhatIfValidationUri
       $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName
-
-      if ($null -eq $uri) {
-        Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
-      }
     }
+      
+    if ($null -eq $uri) {
+      Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
+    }
+
     return $uri
   }
 
