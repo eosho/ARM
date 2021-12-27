@@ -56,7 +56,6 @@ class ARMDeploymentService {
 
   # Invoke ARM operation for deployment
   [object] InvokeARMOperation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location, [string] $Operation) {
-
     $deploymentDetails = $null
 
     # Check for deployment temple exists
@@ -128,7 +127,6 @@ class ARMDeploymentService {
 
   # Construct the request body for ARM REST API
   hidden [string] PrepareRequestBodyForArm([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
-
     $templateJson = $null
     $parametersJson = $null
 
@@ -169,7 +167,6 @@ class ARMDeploymentService {
 
   # Construct the uri for the desired operation
   hidden [string] ConstructUri([PSObject] $ScopeObject, [string] $Operation) {
-
     $uniqueDeploymentName = $this.GenerateUniqueDeploymentName()
 
     Write-PipelineLogger -LogType "debug" -Message "Operation scope: [ $($ScopeObject.Type) ] Operation: [ $operation ]"
@@ -399,13 +396,11 @@ class ARMDeploymentService {
 
     $operationId = $null
     if ($null -ne $respHeader.'x-ms-request-id') {
-      Write-Host "[$($MyInvocation.MyCommand)] - Response contains 'OperationId' '$($respHeader.'x-ms-request-id'[0])'"
       $operationId = $respHeader.'x-ms-request-id'[0]
     }
 
     $correlationId = $null
     if ($null -ne $respHeader.'x-ms-correlation-request-id') {
-      Write-Host "[$($MyInvocation.MyCommand)] - Response contains 'CorrelationId' '$($respHeader.'x-ms-correlation-request-id'[0])'"
       $correlationId = $respHeader.'x-ms-correlation-request-id'[0]
     }
 
@@ -432,7 +427,6 @@ class ARMDeploymentService {
 
   # Remove an existing resource group
   [void] RemoveResourceGroup([PSObject] $ScopeObject) {
-
     try {
       $id = $ScopeObject.Scope
       $resourceGroup = $this.GetResourceGroup($ScopeObject)
@@ -447,7 +441,6 @@ class ARMDeploymentService {
 
   # If there is any resource lock on the existing resource group, we need it cleaned up
   [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
-
     try {
       $resourceId = $ScopeObject.Scope
       $allLocks = Get-AzResourceLock -Scope $resourceId -ErrorAction SilentlyContinue | Where-Object "ProvisioningState" -ne "Deleting"
