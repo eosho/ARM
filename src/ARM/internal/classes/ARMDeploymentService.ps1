@@ -3,6 +3,8 @@ class ARMDeploymentService {
   [string] $ArmSubscriptionDeploymentUri
   [string] $ArmResourceGroupValidationUri
   [string] $ArmSubscriptionValidationUri
+  [string] $ArmResourceGroupWhatIfValidationUri
+  [string] $ArmSubscriptionWhatIfValidationUri
 
   # Executes ARM operation for deployment
   [PSCustomObject] ExecuteDeployment([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
@@ -49,6 +51,32 @@ class ARMDeploymentService {
     }
   }
 
+  # Executes ARM operation for whatIf validation
+  [PSCustomObject] ExecuteValidationWhatIf([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
+    try {
+      # call arm validation
+      $validationWhatIf = $this.InvokeARMOperation(
+        $ScopeObject,
+        $DeploymentTemplate,
+        $DeploymentParameters,
+        $Location,
+        "validateWhatIf"
+      )
+
+      # Did the whatIf validation succeed?
+      if ($validationWhatIf.error.code) {
+        # Throw an exception and pass the exception message from the ARM whatIf validation
+        Throw ("WhatIf Validation failed with the error below: {0}" -f (ConvertTo-Json $validation -Depth 50))
+      } else {
+        Write-PipelineLogger -LogType "success" -Message "WhatIf validation passed"
+      }
+
+      return $validationWhatIf
+    } catch {
+      throw $_.Exception.Message
+    }
+  }
+
   # Generate a new guid for deployment name
   hidden [string] GenerateUniqueDeploymentName() {
     return [Guid]::NewGuid()
@@ -64,10 +92,7 @@ class ARMDeploymentService {
       throw "Deployment template contents cannot be empty"
     } else {
       # Construct the uri for the desired operation
-      $uri = $this.ConstructUri(
-        $ScopeObject,
-        $Operation
-      )
+      $uri = $this.ConstructUri($ScopeObject, $Operation)
 
       # Prepare the request body for the REST API
       $requestBody = $this.PrepareRequestBodyForArm(
@@ -90,7 +115,7 @@ class ARMDeploymentService {
         # Switch REST Verb based on operation type
         if ($Operation -eq "deploy") {
           $method = "PUT"
-        } elseif ($Operation -eq "validate") {
+        } elseif ($Operation -in @("validate", "validateWhatIf")) {
           $method = "POST"
         } else {
           throw "Invalid operation type"
@@ -109,8 +134,15 @@ class ARMDeploymentService {
           Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.InvokeResult.properties.provisioningState) ]"
           Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($deployment.StatusCode) ]"
 
+          # get async operation details for deployment
+          $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
+        } elseif ($operation -eq "validateWhatIf") {
+          Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
+
+          # get async operation details for whatIf validation
           $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
         }
+
         return $deploymentDetails
       } catch {
         # For deploy operation, the error is due malformed or incorrect inputs
@@ -182,6 +214,8 @@ class ARMDeploymentService {
         $uri = $this.ArmSubscriptionDeploymentUri
       } elseif ($operation -eq "validate") {
         $uri = $this.ArmSubscriptionValidationUri
+      } elseif ($operation -eq "validateWhatIf") {
+        $uri = $this.ArmSubscriptionWhatIfValidationUri
       } else {
         throw "Invalid operation type"
       }
@@ -195,6 +229,8 @@ class ARMDeploymentService {
         $uri = $this.ArmResourceGroupDeploymentUri
       } elseif ($operation -eq "validate") {
         $uri = $this.ArmResourceGroupValidationUri
+      } elseif ($operation -eq "validateWhatIf") {
+        $uri = $this.ArmResourceGroupWhatIfValidationUri
       } else {
         throw "Invalid operation type"
       }
@@ -465,5 +501,9 @@ class ARMDeploymentService {
     # validation urls
     $this.ArmResourceGroupValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/validate?api-version=2021-04-01"
     $this.ArmSubscriptionValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
+
+    # whatIf validation urls
+    $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01" 
+    $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
 }
