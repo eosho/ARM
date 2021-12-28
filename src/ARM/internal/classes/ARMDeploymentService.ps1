@@ -18,34 +18,23 @@ class ARMDeploymentService {
         "deploy"
       )
 
-      Write-PipelineLogger -LogType "info" -Message "Obtaining deployment details..."
-      switch ($ScopeObject.Type) {
-       "resourcegroups" {
-         $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $deployment.InvokeResult.name
-       }
-       "subscriptions" {
-         $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $deployment.InvokeResult.name
-       }
-       Default {
-         Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
-       }
-      }
-
       # Did the deployment succeed?
-      if ($deployment.InvokeResult.error) {
-        Write-PipelineLogger -LogType "warning" -Message "Deployment: [ $($deployment.InvokeResult.name) ] has failed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
+      if (($deployment.InvokeResult.error) -or ($deployment.InvokeResult.status -in @("Failed", "Canceled"))) {
+        Write-PipelineLogger -LogType "warning" -Message "Oops! Deployment failed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
         Write-PipelineLogger -LogType "error" -Message "Code: [ $($deployment.InvokeResult.error.details.code) ]" -NoFailOnError
         Write-PipelineLogger -LogType "error" -Message "Message: $($deployment.InvokeResult.error.message)" -NoFailOnError
         Write-PipelineLogger -LogType "error" -Message "Details: $($deployment.InvokeResult.error.details.message)"
-      } else {
-        Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
-        $resourceDetails = Get-AzResource | Where-Object { $_.Name -eq $deploymentDetails[0].TargetResource.Split("/")[-1] }
-        Write-PipelineLogger -LogType "success" -Message "Provisioned: [ $($resourceDetails.ResourceType) ] with Resource ID : [ $($resourceDetails.ResourceId) ]"
+      } elseif ($deployment.error) {
+        Write-PipelineLogger -LogType "warning" -Message "Oops! Deployment failed with the following errors..."
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($deployment.error.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($deployment.error.message)"
+      } elseif ($deployment.InvokeResult.status -eq "Succeeded") {
+        Write-PipelineLogger -LogType "success" -Message "Hooray! Deployment completed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
       }
 
       return $deployment
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "Error: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "$($_.Exception.Message)"
       throw $_.Exception.Message
     }
   }
@@ -89,18 +78,16 @@ class ARMDeploymentService {
       )
 
       Write-PipelineLogger -LogType "info" -Message "Obtaining whatIf validation results..."
-      
+
       # Did the whatIf validation succeed?
       if ($whatIfValidation.InvokeResult.error) {
-        Write-PipelineLogger -LogType "warning" -Message "WhatIf Validation: [ $($whatIfValidation.InvokeResult.name) ] has failed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
-        Write-PipelineLogger -LogType "error" -Message "Code: [ $($whatIfValidation.InvokeResult.error.details.code) ]" -NoFailOnError
-        Write-PipelineLogger -LogType "error" -Message "Message: $($whatIfValidation.InvokeResult.error.message)" -NoFailOnError
-        Write-PipelineLogger -LogType "error" -Message "Details: $($whatIfValidation.InvokeResult.error.details.message)"
+        Write-PipelineLogger -LogType "warning" -Message "WhatIf Validation failed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($whatIfValidation.InvokeResult.error.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($whatIfValidation.InvokeResult.error.message)"
       } else {
-        Write-PipelineLogger -LogType "success" -Message "WhatIf Validation: [ $($whatIfValidation.InvokeResult.name) ] has completed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "success" -Message "WhatIf Validation completed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
         $beforeChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "before" | ConvertTo-Json -Depth 99
         $afterChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "after" | ConvertTo-Json -Depth 99
-        Write-PipelineLogger -LogType "info" -Message "WhatIf Validation passed"
         Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - before: $($beforeChanges)"
         Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - after: $($afterChanges)"
       }
@@ -156,11 +143,7 @@ class ARMDeploymentService {
         }
 
         # Call REST API to start the deployment
-        try {
-          $deployment = $this.InvokeARMRestMethod($method, $uri, $requestBody)
-        } catch {
-          throw $_.Exception.Message
-        }
+        $deployment = $this.InvokeARMRestMethod($method, $uri, $requestBody)
 
         # wait for arm deployment
         if ($null -ne $deployment.InvokeResult.Id -and $operation -eq "deploy") {
@@ -170,6 +153,9 @@ class ARMDeploymentService {
 
           # get async operation details for deployment
           $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
+        } elseif ($deployment.StatusMessage) {
+          $deploymentDetails = $deployment.StatusMessage | ConvertFrom-Json
+
         } elseif ($operation -eq "validateWhatIf") {
           Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
 
@@ -272,7 +258,7 @@ class ARMDeploymentService {
       # construct the uri using the format for armResourceGroupDeploymentUri or armResourceGroupValidationUri or armResourceGroupWhatIfValidationUri
       $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName
     }
-      
+
     if ($null -eq $uri) {
       Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
     }
@@ -439,7 +425,7 @@ class ARMDeploymentService {
       $invokeResult = Invoke-RestMethod @irmArgs
     } catch {
       $errorMessage = $_.ErrorDetails.Message
-      Write-Error -ErrorRecord $_ -ErrorAction Continue
+      Write-Error $errorMessage -ErrorAction Continue
     }
 
     $operationId = $null
@@ -515,7 +501,7 @@ class ARMDeploymentService {
     $this.ArmSubscriptionValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
 
     # whatIf validation urls
-    $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01" 
+    $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01"
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
 }

@@ -27,6 +27,9 @@ function New-ARMDeployment {
     .PARAMETER Validate
       Switch to validate deployment against the ARM API.
 
+    .PARAMETER ValidateWhatIf
+      Switch to perform a what-if deployment validation against the ARM API.
+
     .PARAMETER TearDownEnvironment
       Switch to delete the entire resource group and its contents.
 
@@ -107,6 +110,9 @@ function New-ARMDeployment {
     [switch] $Validate,
 
     [Parameter(Mandatory = $false)]
+    [switch] $ValidateWhatIf,
+
+    [Parameter(Mandatory = $false)]
     [switch] $TearDownEnvironment,
 
     [Parameter(Mandatory = $false)]
@@ -157,7 +163,7 @@ function New-ARMDeployment {
           }
         }
         'subscription' {
-          if ($templateObj.'$schema'  -match [regex]::Escape('subscriptionDeploymentTemplate.json')) {
+          if ($templateObj.'$schema' -match [regex]::Escape('subscriptionDeploymentTemplate.json')) {
             $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope subscription."
@@ -181,7 +187,7 @@ function New-ARMDeployment {
     #endregion Resolve Scope
 
     #region set subscription context
-    try{
+    try {
       Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Subscription.Context.Initializing"
       Set-ARMContext -Scope $scopeObject -ErrorAction Stop
     } catch {
@@ -199,6 +205,16 @@ function New-ARMDeployment {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Processing"
           if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
             $deploymentService.ExecuteValidation(
+              $scopeObject,
+              $templateObj,
+              $templateParameterObj,
+              $DefaultDeploymentRegion
+            )
+          }
+        } elseif ($ValidateWhatIf.IsPresent) {
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Processing"
+          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'ValidateWhatIf')) {
+            $deploymentService.ExecuteValidationWhatIf(
               $scopeObject,
               $templateObj,
               $templateParameterObj,
@@ -260,6 +276,7 @@ function New-ARMDeployment {
         Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"
       }
     } catch {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Failed" -NoFailOnError
       throw "$($_.Exception.Message)"
     }
     #endregion deployment stage
