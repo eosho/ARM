@@ -144,8 +144,6 @@ class ARMDeploymentService {
         }
         #endregion
 
-        break
-
         # Switch REST Verb based on operation type
         if ($Operation -eq "deploy") {
           $method = "PUT"
@@ -381,7 +379,7 @@ class ARMDeploymentService {
   hidden [PSCustomObject] GetARMToken() {
     $currentAzureContext = Get-AzContext
     if ($null -eq $currentAzureContext.Subscription.TenantId) {
-      Write-PipelineLogger -LogType "error" -Message "[$($MyInvocation.MyCommand)] - No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
+      Write-PipelineLogger -LogType "error" -Message "No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
     }
 
     $token = Get-AzAccessToken
@@ -389,6 +387,20 @@ class ARMDeploymentService {
     return [PSCustomObject]@{
       AccessToken = $token.Token
       ExpiresOn   = $token.ExpiresOn
+    }
+  }
+  #endregion
+
+  # Method: Get the header values
+  hidden [PSCustomObject] GetResponseHeaderValue([PSObject] $HttpResponse, [string] $HeaderName) {
+    if ($HttpResponse) {
+      $headerValues = New-Object System.Collections.Generic.List[string]
+      $HttpResponse.ResponseHeader.TryGetValue($HeaderName, [ref] $headerValues) | Out-Null
+
+      return $headerValues.Count -gt 0 ? [string] $headerValues : $null
+    } else {
+      $headerValue = $HttpResponse.ResponseHeader."$($HeaderName)"
+      return $headerValue ? [string] $headerValue : $null
     }
   }
   #endregion
@@ -405,8 +417,8 @@ class ARMDeploymentService {
     }
 
     #region Extracts the HTTP response headers of the asynchronous operation.
-    $azureAsyncOperation = $HttpResponse.ResponseHeader.'Azure-AsyncOperation' | Out-String
-    $location = $HttpResponse.ResponseHeader.'Location' | Out-String
+    $azureAsyncOperation = $this.GetResponseHeaderValue($HttpResponse, "Azure-AsyncOperation")
+    $location = $this.GetResponseHeaderValue($HttpResponse, "Location")
 
     if (-not ($azureAsyncOperation -or $location)) {
       Write-PipelineLogger -LogType "error" -Message "HTTP response does not contain required headers - 'Azure-AsyncOperation' or 'Location'."
