@@ -128,6 +128,24 @@ class ARMDeploymentService {
           Write-PipelineLogger -LogType "error" -Message "Request Body is empty"
         }
 
+        #region check resource Id exists for resource group deployments only
+        if ($ScopeObject.Type -eq "resourcegroups") {
+          $resourceId = $this.GenerateResourceId($ScopeObject, $DeploymentTemplate, $DeploymentParameters)
+          if ($resourceId) {
+            $getResource = Get-AzResource -ResourceId $resourceId -ErrorAction SilentlyContinue
+            if ($getResource) {
+              Write-PipelineLogger -LogType "info" -Message "Resource Id: [ $resourceId ] exists. Mode [ UPDATE ]"
+            } else {
+              Write-PipelineLogger -LogType "info" -Message "Resource Id [ $resourceId ] does not exist. Mode [ CREATE ]"
+            }
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Something went wrong while generating resource Id. Mode [ CREATE/UPDATE ]"
+          }
+        }
+        #endregion
+
+        break
+
         # Switch REST Verb based on operation type
         if ($Operation -eq "deploy") {
           $method = "PUT"
@@ -278,6 +296,47 @@ class ARMDeploymentService {
     }
 
     return $uri
+  }
+  #endregion
+
+  # Method: Check if resource already exists and generate resource id
+  hidden [string] GenerateResourceId([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters) {
+    $resourceType = $null
+    $resourceId = $null
+
+    $resourceType = $DeploymentTemplate.resources[0].type
+    $resourceNameInTemplate = ($DeploymentTemplate.resources | Where-Object { $_.type -eq $resourceType }).name
+
+    # get the actual resource type
+    if ($resourceType -eq "Microsoft.Resources/deployments") {
+      $resourceType = $DeploymentTemplate.resources[0].properties.template.resources[0].type
+    }
+
+    $resourceNameParameters = @()
+    while ($true) {
+      $startOfParameters = $resourceNameInTemplate.IndexOf("parameters('")
+      $startOfParameterName = $startOfParameters + 12
+
+      if ($startOfParameters -eq -1) {
+        break
+      }
+
+      $endParameterName = $resourceNameInTemplate.indexOf("'", $startOfParameterName)
+      $resourceNameParameters += $resourceNameInTemplate.substring($startOfParameterName , $endParameterName - $startOfParameterName )
+      $resourceNameInTemplate = $resourceNameInTemplate.Substring($startOfParameterName)
+    }
+
+    $resourceTypeSplitSplit = $resourceType.split("/")
+    $resourceId = "/subscriptions/$($ScopeObject.subscriptionId)/resourceGroups/$($ScopeObject.Name)/providers/$($resourceTypeSplitSplit[0])"
+    $resourceTypeSplitSplit = $resourceTypeSplitSplit[1..($resourceTypeSplitSplit.Length - 1)] # removing Microsoft.Sql from Microsoft.Sql/servers/databases so array will have same element as [ $resourceNameParameters ]
+
+    # iterating to fill out the values servers/dev-sql-server-ed8/databases/dev-sql-database-02 and adding it to the resourceId
+    for ($i = 0; $i -lt $ResourceTypeSplitSplit.Count; $i++) {
+      $parameterValue = ($DeploymentParameters.parameters.($resourceNameParameters[$i])).value
+      $resourceId += ("/" + $resourceTypeSplitSplit[$i] + "/" + $parameterValue)
+    }
+
+    return $resourceId
   }
   #endregion
 
