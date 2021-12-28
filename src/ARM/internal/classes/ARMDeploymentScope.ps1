@@ -37,8 +37,6 @@ class ARMDeploymentScope {
       $this.Name = $this.IsResourceGroup()
       $this.SubscriptionDisplayName = $this.GetSubscription().Name
       $this.SubscriptionId = $this.GetSubscription().Id
-      $this.ManagementGroup = $this.GetManagementGroup().Id
-      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
     } elseif ($this.IsSubscription()) {
       $this.Type = "subscriptions"
       $this.ResourceProvider = "Microsoft.Subscriptions"
@@ -46,15 +44,13 @@ class ARMDeploymentScope {
       $this.Name = $this.IsSubscription()
       $this.SubscriptionDisplayName = $this.GetSubscription().Name
       $this.SubscriptionId = $this.GetSubscription().Id
-      $this.ManagementGroup = $this.GetManagementGroup().Id
-      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
     } elseif ($this.IsManagementGroup()) {
       $this.Type = "managementGroups"
       $this.ResourceProvider = "Microsoft.Management"
       $this.Resource = "managementGroups"
       $this.Name = $this.IsManagementGroup()
       $this.ManagementGroup = $this.GetManagementGroup().Id
-      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
+      $this.ManagementGroupDisplayName = $this.GetManagementGroupName()
     } elseif ($this.IsTenant()) {
       $this.Type = "root"
       $this.Name = "/"
@@ -70,7 +66,7 @@ class ARMDeploymentScope {
   }
 
   # Method: Check management group tenant root scope
-  [bool] IsTenant() {
+  [string] IsTenant() {
     if (($this.Scope -match $this.regex_tenant)) {
       return ($this.Scope.Split('/')[1])
     }
@@ -78,7 +74,7 @@ class ARMDeploymentScope {
   }
 
   # Method: Check if management group scope
-  [bool] IsManagementGroup() {
+  [string] IsManagementGroup() {
     if (($this.Scope -match $this.regex_managementgroup)) {
       return ($this.Scope.Split('/')[4])
     }
@@ -130,18 +126,16 @@ class ARMDeploymentScope {
 
   # Get Management Group info
   [object] GetManagementGroup() {
-    if ($this.Scope -match $this.regex_managementgroupExtract) {
-      $mgmtGroupId = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
-      
-      if ($this.GetManagementGroup()) {
-        $mgmt = Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupId }
-        if ($mgmt.DisplayName -eq $mgmtGroupName) {
+    if ($this.GetManagementGroupName()) {
+      foreach ($mgmt in (Get-AzManagementGroup -ErrorAction SilentlyContinue)) {
+        if ($mgmt.DisplayName -eq $this.GetManagementGroupName()) {
           return $mgmt
         }
       }
+    }
 
-      if ($this.Subscription) {
-        $mgmt = Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupId }
+    if ($this.Subscription) {
+      foreach ($mgmt in Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue) {
         foreach ($child in $mgmt.Children) {
           if ($child.DisplayName -eq $this.subscriptionDisplayName) {
             return $mgmt
@@ -149,7 +143,33 @@ class ARMDeploymentScope {
         }
       }
     }
-  
+
+    return $null
+  }
+
+  [string] GetManagementGroupName() {
+    if ($this.Scope -match $this.regex_managementgroupExtract) {
+      $mgId = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
+
+      if ($mgId) {
+        $mgDisplayName = (Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object Name -eq $mgId).DisplayName
+        if ($mgDisplayName) {
+          return $mgDisplayName
+        } else {
+          return $mgId
+        }
+      }
+    }
+
+    if ($this.Subscription) {
+      foreach ($managementGroup in Get-AzManagementGroup -ErrorAction SilentlyContinue) {
+        foreach ($child in $managementGroup.Children) {
+          if ($child.DisplayName -eq $this.subscriptionDisplayName) {
+            return $managementGroup.DisplayName
+          }
+        }
+      }
+    }
     return $null
   }
 

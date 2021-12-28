@@ -14,17 +14,11 @@ class ARMDeploymentService {
   [string] $ArmSubscriptionWhatIfValidationUri
   [string] $ArmManagementGroupWhatIfValidationUri
 
-  # Executes ARM operation for deployment
+  # Method: Executes ARM operation for deployment
   [PSCustomObject] ExecuteDeployment([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm deployment
-      $deployment = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "deploy"
-      )
+      $deployment = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "deploy")
 
       # Did the deployment succeed?
       if (($deployment.InvokeResult.error) -or ($deployment.InvokeResult.status -in @("Failed", "Canceled"))) {
@@ -46,18 +40,13 @@ class ARMDeploymentService {
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Executes ARM operation for validation
+  # Method: Executes ARM operation for validation
   [PSCustomObject] ExecuteValidation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm validation
-      $validation = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "validate"
-      )
+      $validation = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "validate")
 
       # Did the validation succeed?
       if ($validation.error.code -eq "InvalidTemplateDeployment") {
@@ -72,18 +61,13 @@ class ARMDeploymentService {
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Executes ARM operation for whatIf validation
+  # Method: Executes ARM operation for whatIf validation
   [PSCustomObject] ExecuteValidationWhatIf([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm whatIf validation
-      $whatIfValidation = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "validateWhatIf"
-      )
+      $whatIfValidation = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "validateWhatIf")
 
       Write-PipelineLogger -LogType "info" -Message "Obtaining whatIf validation results..."
 
@@ -105,31 +89,34 @@ class ARMDeploymentService {
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Generate a new guid for deployment name
+  # Method: Generate a new guid for deployment name
   hidden [string] GenerateUniqueDeploymentName() {
     return [Guid]::NewGuid()
   }
+  #endregion
 
-  # Invoke ARM operation for deployment
+  # Method: Invoke ARM operation for deployment
   [object] InvokeARMOperation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location, [string] $Operation) {
     $deploymentDetails = $null
 
     # Check for deployment temple exists
     if ([string]::IsNullOrEmpty($DeploymentTemplate)) {
-      Write-PipelineLogger -LogType "error" -Message "DeploymentTemplate cannot be null or empty"
-      throw "Deployment template contents cannot be empty"
+      Write-PipelineLogger -LogType "error" -Message "DeploymentTemplate cannot be null or empty" -NoFailOnError
+      throw "Deployment template cannot be empty"
+
+      # Check for deployment parameters exists
+      if ([string]::IsNullOrEmpty($DeploymentParameters)) {
+        Write-PipelineLogger -LogType "error" -Message "DeploymentParameters cannot be null or empty" -NoFailOnError
+        throw "Deployment parameters cannot be empty"
+      }
     } else {
       # Construct the uri for the desired operation
       $uri = $this.ConstructUri($ScopeObject, $Operation)
 
       # Prepare the request body for the REST API
-      $requestBody = $this.PrepareRequestBodyForArm(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location
-      )
+      $requestBody = $this.PrepareRequestBodyForArm($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location)
 
       try {
         Write-PipelineLogger -LogType "debug" -Message "Invoking ARM REST API with Uri: [ $uri ]"
@@ -184,8 +171,9 @@ class ARMDeploymentService {
       }
     }
   }
+  #endregion
 
-  # Construct the request body for ARM REST API
+  # Method: Construct the request body for ARM REST API
   hidden [string] PrepareRequestBodyForArm([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     $templateJson = $null
     $parametersJson = $null
@@ -226,8 +214,9 @@ class ARMDeploymentService {
 
     return $requestBody
   }
+  #endregion
 
-  # Construct the uri for the desired operation
+  # Method: Construct the uri for the desired operation
   hidden [string] ConstructUri([PSObject] $ScopeObject, [string] $Operation) {
     $uniqueDeploymentName = $this.GenerateUniqueDeploymentName()
 
@@ -251,7 +240,7 @@ class ARMDeploymentService {
       }
 
       # construct the uri using the format for armManagementGroupDeploymentUri or armManagementGroupValidationUri or armManagementGroupWhatIfValidationUri
-      $uri = $uri -f $ScopeObject.Name, $uniqueDeploymentName
+      $uri = $uri -f @($ScopeObject.Name, $uniqueDeploymentName)
     } elseif ($ScopeObject.Type -eq "subscriptions") {
       Write-PipelineLogger -LogType "info" -Message "Detected a subscription level deployment"
 
@@ -266,7 +255,7 @@ class ARMDeploymentService {
       }
 
       # construct the uri using the format for armSubscriptionDeploymentUri or armSubscriptionValidationUri or armSubscriptionWhatIfValidationUri
-      $uri = $uri -f $ScopeObject.SubscriptionId, $uniqueDeploymentName
+      $uri = $uri -f @($ScopeObject.SubscriptionId, $uniqueDeploymentName)
     } else {
       Write-PipelineLogger -LogType "info" -Message "Detected a resourceGroup level deployment"
 
@@ -281,7 +270,7 @@ class ARMDeploymentService {
       }
 
       # construct the uri using the format for armResourceGroupDeploymentUri or armResourceGroupValidationUri or armResourceGroupWhatIfValidationUri
-      $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName
+      $uri = $uri -f @($ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName)
     }
 
     if ($null -eq $uri) {
@@ -290,8 +279,9 @@ class ARMDeploymentService {
 
     return $uri
   }
+  #endregion
 
-  # Clean up deployment history
+  # Method: Clean up deployment history
   hidden [object] RemoveDeploymentHistory([PSObject] $ScopeObject, [object] $Deployment) {
     $removeHistory = $null
 
@@ -315,53 +305,9 @@ class ARMDeploymentService {
 
     return $removeHistory
   }
+  #endregion
 
-  # Generate resource Id and check if resource already exists
-  hidden [string] GenerateResourceId([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters) {
-    $resourceType = $null
-    $resourceId = $null
-
-    $resourceType = $DeploymentTemplate.resources[0].type
-    $resourceNameInTemplate = ($DeploymentTemplate.resources | Where-Object { $_.type -eq $resourceType })
-
-    if ($resourceNameInTemplate.Length -eq 0) {
-      Write-PipelineLogger -LogType "warning" -Message "Resource name was not found in temple"
-    } elseif ($resourceNameInTemplate.Length -gt 1) {
-      $resourceNameInTemplate = $resourceNameInTemplate[0]
-      Write-PipelineLogger -LogType "success" -Message "Resource name found in template - [ $resourceNameInTemplate ]"
-    } else {
-      Write-PipelineLogger -LogType "warning" -Message "Oops! Something went wrong..."
-    }
-
-    $resourceNameInParameters = @()
-    while ($true) {
-      $startOfParameters = $resourceNameInTemplate.IndexOf("parameters('")
-      $startOfParameterName = $startOfParameters + 12
-
-      if ($startOfParameters -eq -1) {
-        return $null
-      }
-      
-      $endParameterName = $resourceNameInTemplate.indexOf("'", $startOfParameterName)
-      $resourceNameParameters += $resourceNameInTemplate.substring($startOfParameterName , $endParameterName - $startOfParameterName )
-      $resourceNameInTemplate = $resourceNameInTemplate.Substring($startOfParameterName)
-    }
- 
-    $resourceTypeSplitSplit = $resourceType.split("/")
-    $resourceId = "/subscriptions/$($ScopeObject.subscriptionId)/resourceGroups/$($ScopeObject.Name)/providers/$($resourceTypeSplitSplit[0])"
-    $resourceTypeSplitSplit = $resourceTypeSplitSplit[1..($resourceTypeSplitSplit.Length - 1)] # removing Microsoft.Sql from Microsoft.Sql/servers/databases so array will have same element as [ $resourceNameParameters ]
-    
-    # iterating to fill out the values servers/ccp-sql-server-ed8/databases/ccp-sql-database-02 and adding it to the resourceId
-    for ($i = 0; $i -lt $ResourceTypeSplitSplit.Count; $i++) {
-      $parameterValue = ($DeploymentParameters.parameters.($resourceNameParameters[$i])).value
-      $resourceId += ("/" + $resourceTypeSplitSplit[$i] + "/" + $parameterValue)
-    }
-
-    Write-PipelineLogger -LogType "success" -Message "[$($MyInvocation.MyCommand)] - Constructed resourceId [ $resourceId ]"
-    return $resourceId
-  }
-
-  # Set the subscription context
+  # Method: Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
       Write-PipelineLogger -LogType "info" -Message "Setting subscription context: Subscription - [ $($ScopeObject.SubscriptionId) ]"
@@ -370,8 +316,9 @@ class ARMDeploymentService {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
     }
   }
+  #endregion
 
-  # Get a token to work against the ARM API
+  # Method: Get a token to work against the ARM API
   hidden [PSCustomObject] GetARMToken() {
     $currentAzureContext = Get-AzContext
     if ($null -eq $currentAzureContext.Subscription.TenantId) {
@@ -385,8 +332,9 @@ class ARMDeploymentService {
       ExpiresOn   = $token.ExpiresOn
     }
   }
+  #endregion
 
-  # Get the status of an Async operation
+  # Method: Get the status of an Async operation
   hidden [PSCustomObject] WaitForDeploymentToComplete([PSObject] $HttpResponse, [PSObject] $ScopeObject) {
     $status = $null
     $asyncResponse = $null
@@ -468,8 +416,9 @@ class ARMDeploymentService {
 
     return $asyncResponse
   }
+  #endregion
 
-  # Invokes a Rest call to azure and adds the token to header parameter
+  # Method: Invokes a Rest call to azure and adds the token to header parameter
   hidden [PSCustomObject] InvokeARMRestMethod([string] $Method, [string] $Uri, [PSObject] $Body) {
     $respHeader = $null
     $invokeResult = $null
@@ -521,8 +470,9 @@ class ARMDeploymentService {
       StatusMessage  = $errorMessage
     }
   }
+  #endregion
 
-  # Get an existing resource group
+  # Method: Get an existing resource group
   [object] GetResourceGroup([PSObject] $ScopeObject) {
     try {
       $resourceId = $ScopeObject.Scope
@@ -532,8 +482,9 @@ class ARMDeploymentService {
       throw $_
     }
   }
+  #endregion
 
-  # Remove an existing resource group
+  # Method: Remove an existing resource group
   [void] RemoveResourceGroup([PSObject] $ScopeObject) {
     try {
       $id = $ScopeObject.Scope
@@ -546,8 +497,9 @@ class ARMDeploymentService {
       throw $_
     }
   }
+  #endregion
 
-  # If there is any resource lock on the existing resource group, we need it cleaned up
+  # Method: Remove resource lock on the existing resource group
   [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
     try {
       $resourceId = $ScopeObject.Scope
@@ -563,8 +515,9 @@ class ARMDeploymentService {
       throw $_
     }
   }
+  #endregion
 
-  # Set azure management urls
+  # Method: Set azure management urls
   hidden [void] SetAzureManagementUrls() {
     # deployment urls
     $this.ArmResourceGroupDeploymentUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}?api-version=2021-04-01"
@@ -581,4 +534,5 @@ class ARMDeploymentService {
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
     $this.ArmManagementGroupWhatIfValidationUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
+  #endregion
 }
