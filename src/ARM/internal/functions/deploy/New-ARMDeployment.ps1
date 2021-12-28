@@ -91,7 +91,7 @@ function New-ARMDeployment {
     [string] $TemplateParameterFilePath,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
-    [ValidateSet("resourcegroup", "subscription")]
+    [ValidateSet("resourcegroup", "subscription", "managementgroup", "tenant")]
     [string] $Scope,
 
     [Parameter(Mandatory = $false)]
@@ -167,6 +167,22 @@ function New-ARMDeployment {
             $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope subscription."
+            return
+          }
+        }
+        'managementgroup' {
+          if ($templateObj.'$schema' -match [regex]::Escape('managementGroupDeploymentTemplate.json')) {
+            $scopeObject = New-ARMScope -Scope $scope -ErrorAction Stop -WhatIf:$false
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope managementgroup."
+            return
+          }
+        }
+        'tenant' {
+          if ($templateObj.'$schema' -match [regex]::Escape('tenantDeploymentTemplate.json')) {
+            $scopeObject = New-ARMScope -Scope $scope -ErrorAction Stop -WhatIf:$false
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope tenant."
             return
           }
         }
