@@ -21,6 +21,9 @@ function New-ARMDeployment {
     .PARAMETER SubscriptionId
       The name of the subscription. Required for both resource group or subscription scopes.
 
+    .PARAMETER ManagementGroupName
+      The name of the management group for which to return a scope object.
+
     .PARAMETER DefaultDeploymentRegion
       The default deployment region. E.g. EastUS.
 
@@ -91,12 +94,16 @@ function New-ARMDeployment {
     [string] $TemplateParameterFilePath,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
-    [ValidateSet("resourcegroup", "subscription", "managementgroup", "tenant")]
+    [ValidateSet("resourcegroup", "subscription", "managementgroup")]
     [string] $Scope,
 
     [Parameter(Mandatory = $false)]
     [Alias('RGName')]
     [string] $ResourceGroupName,
+
+    [Parameter()]
+    [Alias('MgName')]
+    [string] $ManagementGroupName,
 
     [Parameter(Mandatory = $false)]
     [Alias('SubId')]
@@ -172,22 +179,14 @@ function New-ARMDeployment {
         }
         'managementgroup' {
           if ($templateObj.'$schema' -match [regex]::Escape('managementGroupDeploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -ErrorAction Stop -WhatIf:$false
+            $scopeObject = New-ARMScope -Scope $scope -ManagementGroupName $ManagementGroupName -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope managementgroup."
             return
           }
         }
-        'tenant' {
-          if ($templateObj.'$schema' -match [regex]::Escape('tenantDeploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -ErrorAction Stop -WhatIf:$false
-          } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope tenant."
-            return
-          }
-        }
         default {
-          throw "Invalid scope. Valid scopes are resourcegroup and subscription"
+          throw "Invalid scope. Valid scopes are resourcegroup, subscription or managementgroup"
         }
       }
     } catch {
