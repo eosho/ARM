@@ -33,7 +33,7 @@ function New-ARMScope {
   [Alias("Set-ARMScope")]
   param (
     [Parameter(ParameterSetName = "scope")]
-    [ValidateSet("resourcegroup", "subscription", "managementgroup", "tenant")]
+    [ValidateSet("resourcegroup", "subscription", "managementgroup")]
     [string] $Scope,
 
     [Parameter()]
@@ -57,7 +57,7 @@ function New-ARMScope {
       $scopePath = '/subscriptions/{0}/resourceGroups/{1}' -f $SubscriptionId, $ResourceGroupName
     } elseif ($SubscriptionId -and $scope -eq "subscription") {
       $scopePath = '/subscriptions/{0}' -f $SubscriptionId
-    } elseif ($ManagementGroupName -and $scope -in @("managementgroup", "tenant")) {
+    } elseif ($ManagementGroupName -and $scope -eq "managementgroup") {
       $scopePath = '/providers/Microsoft.Management/managementGroups/{0}' -f $ManagementGroupName
     } else {
       throw "Must specify either resourcegroup or subscription scope"
