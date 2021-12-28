@@ -111,6 +111,16 @@ class ARMDeploymentScope {
     return $null
   }
 
+  # Check if user or SPN is logged in
+  [void] IsLoggedIn() {
+    try {
+      $context = Get-AzContext
+      return ($null -ne $context)
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running IsLoggedIn. Details $($_.Exception.Message)"
+    }
+  }
+
   # Set the subscription context
   [void] SetSubscriptionContext() {
     try {
