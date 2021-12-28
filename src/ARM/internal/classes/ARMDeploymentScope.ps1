@@ -59,7 +59,7 @@ class ARMDeploymentScope {
       $this.Type = "root"
       $this.Name = "/"
     } else {
-      throw New-Object System.ArgumentException("Invalid scope: $($this.Scope). Valid scopes are: resourcegroups and subscriptions")
+      throw New-Object System.ArgumentException("Invalid scope: $($this.Scope). Valid scopes are: resourcegroups, subscriptions, managementgroups and tenant levels")
     }
 
     return $this.ScopeObject
