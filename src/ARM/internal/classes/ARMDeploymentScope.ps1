@@ -21,13 +21,13 @@ class ARMDeploymentScope {
 
   ARMDeploymentScope() { }
 
-  # Method: Check if the scope is a subscription or a resource group
+  # Method: Check if the scope is a management group, subscription or a resource group
   ARMDeploymentScope([string] $Scope) {
-    $this.InitializeMemberVariables($Scope)
+    $this.InitializeScopeVariables($Scope)
   }
 
-  # Method: Initialize member variables
-  hidden [object] InitializeMemberVariables([string] $Scope) {
+  # Method: Initialize scope variables
+  hidden [object] InitializeScopeVariables([string] $Scope) {
     $this.Scope = $Scope
 
     if ($this.IsResourceGroup()) {
@@ -55,7 +55,7 @@ class ARMDeploymentScope {
       $this.Name = $this.IsManagementGroup()
       $this.ManagementGroup = $this.GetManagementGroup().Id
       $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
-    } elseif ($this.IsRoot()) {
+    } elseif ($this.IsTenant()) {
       $this.Type = "root"
       $this.Name = "/"
     } else {
@@ -70,17 +70,17 @@ class ARMDeploymentScope {
   }
 
   # Method: Check management group tenant root scope
-  [bool] IsRoot() {
+  [bool] IsTenant() {
     if (($this.Scope -match $this.regex_tenant)) {
-      return $true
+      return ($this.Scope.Split('/')[1])
     }
-    return $false
+    return $null
   }
 
   # Method: Check if management group scope
   [bool] IsManagementGroup() {
     if (($this.Scope -match $this.regex_managementgroup)) {
-      return ($this.Scope.Split('/')[2])
+      return ($this.Scope.Split('/')[4])
     }
     return $null
   }
@@ -131,17 +131,17 @@ class ARMDeploymentScope {
   # Get Management Group info
   [object] GetManagementGroup() {
     if ($this.Scope -match $this.regex_managementgroupExtract) {
-      $mgmtGroupName = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
+      $mgmtGroupId = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
       
       if ($this.GetManagementGroup()) {
-        $mgmt = Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupName }
+        $mgmt = Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupId }
         if ($mgmt.DisplayName -eq $mgmtGroupName) {
           return $mgmt
         }
       }
 
       if ($this.Subscription) {
-        $mgmt = Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupName }
+        $mgmt = Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupId }
         foreach ($child in $mgmt.Children) {
           if ($child.DisplayName -eq $this.subscriptionDisplayName) {
             return $mgmt
@@ -169,37 +169,6 @@ class ARMDeploymentScope {
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running GetResourceGroup. Details: $($_.Exception.Message)"
-      throw $_
-    }
-  }
-
-  # Remove an existing resource group
-  [void] RemoveResourceGroup() {
-    try {
-      if ($this.Scope -match $this.regex_resourceGroupExtract) {
-        $resourceGroup = $this.GetResourceGroup()
-
-        if ($null -ne $resourceGroup) {
-          Remove-AzResourceGroup -Id $resourceGroup.ResourceId -Force -ErrorAction 'SilentlyContinue' -ErrorAction SilentlyContinue
-        }
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroup. Details: $($_.Exception.Message)"
-      throw $_
-    }
-  }
-
-  # If there is any resource lock on the existing scope, we need it cleaned up
-  [void] RemoveResourceLock() {
-    try {
-      $allLocks = Get-AzResourceLock -Scope $this.Scope -ErrorAction SilentlyContinue | Where-Object "ProvisioningState" -ne "Deleting"
-      if ($null -ne $allLocks) {
-        $allLocks | ForEach-Object {
-          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction 'SilentlyContinue'
-        }
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceLock. Details: $($_.Exception.Message)"
       throw $_
     }
   }
