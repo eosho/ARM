@@ -1,10 +1,18 @@
 class ARMDeploymentService {
+  # Deployment
   [string] $ArmResourceGroupDeploymentUri
   [string] $ArmSubscriptionDeploymentUri
+  [string] $ArmManagementGroupDeploymentUri
+
+  # Validation
   [string] $ArmResourceGroupValidationUri
   [string] $ArmSubscriptionValidationUri
+  [string] $ArmManagementGroupValidationUri
+
+  # WhatIf Validation
   [string] $ArmResourceGroupWhatIfValidationUri
   [string] $ArmSubscriptionWhatIfValidationUri
+  [string] $ArmManagementGroupWhatIfValidationUri
 
   # Executes ARM operation for deployment
   [PSCustomObject] ExecuteDeployment([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
@@ -192,7 +200,7 @@ class ARMDeploymentService {
     }
 
     # Subscription level deployment
-    if ($ScopeObject.Type -eq "subscriptions") {
+    if ($ScopeObject.Type -in @("subscriptions", "managementgroups")) {
 
       # prepare the REST Call's body content format
       $requestBody = "{
@@ -203,7 +211,7 @@ class ARMDeploymentService {
             'parameters': $parametersJson
         }
       }"
-    } else {
+    } elseif ($ScopeObject.Type -eq "resourcegroups") {
       # prepare the REST Call's body content format
       $requestBody = "{
         'properties': {
@@ -212,6 +220,8 @@ class ARMDeploymentService {
             'parameters': $parametersJson
         }
       }"
+    } else {
+      $requestBody = $null
     }
 
     return $requestBody
@@ -226,8 +236,23 @@ class ARMDeploymentService {
     # set the URL's from discovery REST API call
     $this.SetAzureManagementUrls()
 
-    # Subscription level deployment or resource group level deployment - lets construct the uri
-    if ($ScopeObject.Type -eq "subscriptions") {
+    # Management group, Subscription level or resource group level deployment - lets construct the uri
+    if ($ScopeObject.Type -eq "managementgroups") {
+      Write-PipelineLogger -LogType "info" -Message "Detected a managementgroup level deployment"
+
+      if ($operation -eq "deploy") {
+        $uri = $this.ArmManagementGroupDeploymentUri
+      } elseif ($operation -eq "validate") {
+        $uri = $this.ArmManagementGroupValidationUri
+      } elseif ($operation -eq "validateWhatIf") {
+        $uri = $this.ArmManagementGroupWhatIfValidationUri
+      } else {
+        throw "Invalid operation type"
+      }
+
+      # construct the uri using the format for armManagementGroupDeploymentUri or armManagementGroupValidationUri or armManagementGroupWhatIfValidationUri
+      $uri = $uri -f $ScopeObject.Name, $uniqueDeploymentName
+    } elseif ($ScopeObject.Type -eq "subscriptions") {
       Write-PipelineLogger -LogType "info" -Message "Detected a subscription level deployment"
 
       if ($operation -eq "deploy") {
@@ -279,8 +304,12 @@ class ARMDeploymentService {
         Write-PipelineLogger -LogType "info" -Message "Cleaning subscription level deployment history"
         $removeHistory = Remove-AzDeployment -Name $Deployment.DeploymentName -SubscriptionId $ScopeObject.SubscriptionId
       }
+      "managementgroups" {
+        Write-PipelineLogger -LogType "info" -Message "Cleaning managementgroup level deployment history"
+        $removeHistory = Remove-AzManagementGroupDeployment -Name $Deployment.DeploymentName -ManagementGroupId $ScopeObject.Name
+      }
       Default {
-        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
+        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions and managementgroups"
       }
     }
 
@@ -495,13 +524,16 @@ class ARMDeploymentService {
     # deployment urls
     $this.ArmResourceGroupDeploymentUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}?api-version=2021-04-01"
     $this.ArmSubscriptionDeploymentUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}?api-version=2021-04-01"
+    $this.ArmManagementGroupDeploymentUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}?api-version=2021-04-01"
 
     # validation urls
     $this.ArmResourceGroupValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/validate?api-version=2021-04-01"
     $this.ArmSubscriptionValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
+    $this.ArmManagementGroupValidationUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
 
     # whatIf validation urls
     $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01"
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
+    $this.ArmManagementGroupWhatIfValidationUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
 }
