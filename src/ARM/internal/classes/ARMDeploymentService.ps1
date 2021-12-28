@@ -316,6 +316,51 @@ class ARMDeploymentService {
     return $removeHistory
   }
 
+  # Generate resource Id and check if resource already exists
+  hidden [string] GenerateResourceId([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters) {
+    $resourceType = $null
+    $resourceId = $null
+
+    $resourceType = $DeploymentTemplate.resources[0].type
+    $resourceNameInTemplate = ($DeploymentTemplate.resources | Where-Object { $_.type -eq $resourceType })
+
+    if ($resourceNameInTemplate.Length -eq 0) {
+      Write-PipelineLogger -LogType "warning" -Message "Resource name was not found in temple"
+    } elseif ($resourceNameInTemplate.Length -gt 1) {
+      $resourceNameInTemplate = $resourceNameInTemplate[0]
+      Write-PipelineLogger -LogType "success" -Message "Resource name found in template - [ $resourceNameInTemplate ]"
+    } else {
+      Write-PipelineLogger -LogType "warning" -Message "Oops! Something went wrong..."
+    }
+
+    $resourceNameInParameters = @()
+    while ($true) {
+      $startOfParameters = $resourceNameInTemplate.IndexOf("parameters('")
+      $startOfParameterName = $startOfParameters + 12
+
+      if ($startOfParameters -eq -1) {
+        return $null
+      }
+      
+      $endParameterName = $resourceNameInTemplate.indexOf("'", $startOfParameterName)
+      $resourceNameParameters += $resourceNameInTemplate.substring($startOfParameterName , $endParameterName - $startOfParameterName )
+      $resourceNameInTemplate = $resourceNameInTemplate.Substring($startOfParameterName)
+    }
+ 
+    $resourceTypeSplitSplit = $resourceType.split("/")
+    $resourceId = "/subscriptions/$($ScopeObject.subscriptionId)/resourceGroups/$($ScopeObject.Name)/providers/$($resourceTypeSplitSplit[0])"
+    $resourceTypeSplitSplit = $resourceTypeSplitSplit[1..($resourceTypeSplitSplit.Length - 1)] # removing Microsoft.Sql from Microsoft.Sql/servers/databases so array will have same element as [ $resourceNameParameters ]
+    
+    # iterating to fill out the values servers/ccp-sql-server-ed8/databases/ccp-sql-database-02 and adding it to the resourceId
+    for ($i = 0; $i -lt $ResourceTypeSplitSplit.Count; $i++) {
+      $parameterValue = ($DeploymentParameters.parameters.($resourceNameParameters[$i])).value
+      $resourceId += ("/" + $resourceTypeSplitSplit[$i] + "/" + $parameterValue)
+    }
+
+    Write-PipelineLogger -LogType "success" -Message "[$($MyInvocation.MyCommand)] - Constructed resourceId [ $resourceId ]"
+    return $resourceId
+  }
+
   # Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
