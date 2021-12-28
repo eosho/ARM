@@ -12,6 +12,9 @@ function New-ARMScope {
     .PARAMETER ResourceGroupName
       The name of the resource group for which to return a scope object.
 
+    .PARAMETER ManagementGroupName
+      The name of the management group for which to return a scope object.
+
     .PARAMETER SubscriptionId
       The subscription id for which to return a scope object.
 
@@ -30,12 +33,16 @@ function New-ARMScope {
   [Alias("Set-ARMScope")]
   param (
     [Parameter(ParameterSetName = "scope")]
-    [ValidateSet("resourcegroup", "subscription")]
+    [ValidateSet("resourcegroup", "subscription", "managementgroup", "tenant")]
     [string] $Scope,
 
     [Parameter()]
     [Alias('RGName')]
     [string] $ResourceGroupName,
+
+    [Parameter()]
+    [Alias('MgName')]
+    [string] $ManagementGroupName,
 
     [Parameter(Mandatory = $false)]
     [Alias('SubId')]
@@ -50,6 +57,8 @@ function New-ARMScope {
       $scopePath = '/subscriptions/{0}/resourceGroups/{1}' -f $SubscriptionId, $ResourceGroupName
     } elseif ($SubscriptionId -and $scope -eq "subscription") {
       $scopePath = '/subscriptions/{0}' -f $SubscriptionId
+    } elseif ($ManagementGroupName -and $scope -in @("managementgroup", "tenant")) {
+      $scopePath = '/providers/Microsoft.Management/managementGroups/{0}' -f $ManagementGroupName
     } else {
       throw "Must specify either resourcegroup or subscription scope"
     }
