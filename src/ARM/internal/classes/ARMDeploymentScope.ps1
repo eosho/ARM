@@ -6,6 +6,12 @@ class ARMDeploymentScope {
   [string] $Resource
   [string] $SubscriptionDisplayName
   [string] $SubscriptionId
+  [string] $ManagementGroup
+  [string] $ManagementGroupDisplayName
+
+  hidden [regex]$regex_tenant = '/$'
+  hidden [regex]$regex_managementgroup = '(?i)^/providers/Microsoft.Management/managementgroups/[^/]+$'
+  hidden [regex]$regex_managementgroupExtract = '(?i)^/providers/Microsoft.Management/managementgroups/'
 
   hidden [regex]$regex_resourceGroup = '(?i)^/subscriptions/.*/resourcegroups/[^/]*$'
   hidden [regex]$regex_resourceGroupExtract = '(?i)^/subscriptions/.*/resourcegroups/'
@@ -31,6 +37,8 @@ class ARMDeploymentScope {
       $this.Name = $this.IsResourceGroup()
       $this.SubscriptionDisplayName = $this.GetSubscription().Name
       $this.SubscriptionId = $this.GetSubscription().Id
+      $this.ManagementGroup = $this.GetManagementGroup().Id
+      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
     } elseif ($this.IsSubscription()) {
       $this.Type = "subscriptions"
       $this.ResourceProvider = "Microsoft.Subscriptions"
@@ -38,6 +46,18 @@ class ARMDeploymentScope {
       $this.Name = $this.IsSubscription()
       $this.SubscriptionDisplayName = $this.GetSubscription().Name
       $this.SubscriptionId = $this.GetSubscription().Id
+      $this.ManagementGroup = $this.GetManagementGroup().Id
+      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
+    } elseif ($this.IsManagementGroup()) {
+      $this.Type = "managementGroups"
+      $this.ResourceProvider = "Microsoft.Management"
+      $this.Resource = "managementGroups"
+      $this.Name = $this.IsManagementGroup()
+      $this.ManagementGroup = $this.GetManagementGroup().Id
+      $this.ManagementGroupDisplayName = $this.GetManagementGroup().Name
+    } elseif ($this.IsRoot()) {
+      $this.Type = "root"
+      $this.Name = "/"
     } else {
       throw New-Object System.ArgumentException("Invalid scope: $($this.Scope). Valid scopes are: resourcegroups and subscriptions")
     }
@@ -47,6 +67,22 @@ class ARMDeploymentScope {
 
   [string] ToString() {
     return $this.Scope
+  }
+
+  # Method: Check management group tenant root scope
+  [bool] IsRoot() {
+    if (($this.Scope -match $this.regex_tenant)) {
+      return $true
+    }
+    return $false
+  }
+
+  # Method: Check if management group scope
+  [bool] IsManagementGroup() {
+    if (($this.Scope -match $this.regex_managementgroup)) {
+      return ($this.Scope.Split('/')[2])
+    }
+    return $null
   }
 
   # Method: Check if subscription scope
@@ -90,6 +126,31 @@ class ARMDeploymentScope {
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
     }
+  }
+
+  # Get Management Group info
+  [object] GetManagementGroup() {
+    if ($this.Scope -match $this.regex_managementgroupExtract) {
+      $mgmtGroupName = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
+      
+      if ($this.GetManagementGroup()) {
+        $mgmt = Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupName }
+        if ($mgmt.DisplayName -eq $mgmtGroupName) {
+          return $mgmt
+        }
+      }
+
+      if ($this.Subscription) {
+        $mgmt = Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.GroupName -eq $mgmtGroupName }
+        foreach ($child in $mgmt.Children) {
+          if ($child.DisplayName -eq $this.subscriptionDisplayName) {
+            return $mgmt
+          }
+        }
+      }
+    }
+  
+    return $null
   }
 
   # Get an existing resource group
