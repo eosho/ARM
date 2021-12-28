@@ -18,6 +18,31 @@ class ARMDeploymentService {
         "deploy"
       )
 
+      Write-PipelineLogger -LogType "info" -Message "Obtaining deployment details..."
+      switch ($ScopeObject.Type) {
+       "resourcegroups" {
+         $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $deployment.InvokeResult.name
+       }
+       "subscriptions" {
+         $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $deployment.InvokeResult.name
+       }
+       Default {
+         Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
+       }
+      }
+
+      # Did the deployment succeed?
+      if ($deployment.InvokeResult.error) {
+        Write-PipelineLogger -LogType "warning" -Message "Deployment: [ $($deployment.InvokeResult.name) ] has failed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($deployment.InvokeResult.error.details.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($deployment.InvokeResult.error.message)" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Details: $($deployment.InvokeResult.error.details.message)"
+      } else {
+        Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
+        $resourceDetails = Get-AzResource | Where-Object { $_.Name -eq $deploymentDetails[0].TargetResource.Split("/")[-1] }
+        Write-PipelineLogger -LogType "success" -Message "Provisioned: [ $($resourceDetails.ResourceType) ] with Resource ID : [ $($resourceDetails.ResourceId) ]"
+      }
+
       return $deployment
     } catch {
       Write-PipelineLogger -LogType "error" -Message "Error: $($_.Exception.Message)"
@@ -54,8 +79,8 @@ class ARMDeploymentService {
   # Executes ARM operation for whatIf validation
   [PSCustomObject] ExecuteValidationWhatIf([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
-      # call arm validation
-      $validationWhatIf = $this.InvokeARMOperation(
+      # call arm whatIf validation
+      $whatIfValidation = $this.InvokeARMOperation(
         $ScopeObject,
         $DeploymentTemplate,
         $DeploymentParameters,
@@ -63,15 +88,24 @@ class ARMDeploymentService {
         "validateWhatIf"
       )
 
+      Write-PipelineLogger -LogType "info" -Message "Obtaining whatIf validation results..."
+      
       # Did the whatIf validation succeed?
-      if ($validationWhatIf.error.code) {
-        # Throw an exception and pass the exception message from the ARM whatIf validation
-        Throw ("WhatIf Validation failed with the error below: {0}" -f (ConvertTo-Json $validation -Depth 50))
+      if ($whatIfValidation.InvokeResult.error) {
+        Write-PipelineLogger -LogType "warning" -Message "WhatIf Validation: [ $($whatIfValidation.InvokeResult.name) ] has failed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($whatIfValidation.InvokeResult.error.details.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($whatIfValidation.InvokeResult.error.message)" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Details: $($whatIfValidation.InvokeResult.error.details.message)"
       } else {
-        Write-PipelineLogger -LogType "success" -Message "WhatIf validation passed"
+        Write-PipelineLogger -LogType "success" -Message "WhatIf Validation: [ $($whatIfValidation.InvokeResult.name) ] has completed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
+        $beforeChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "before" | ConvertTo-Json -Depth 99
+        $afterChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "after" | ConvertTo-Json -Depth 99
+        Write-PipelineLogger -LogType "info" -Message "WhatIf Validation passed"
+        Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - before: $($beforeChanges)"
+        Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - after: $($afterChanges)"
       }
 
-      return $validationWhatIf
+      return $whatIfValidation
     } catch {
       throw $_.Exception.Message
     }
@@ -297,7 +331,6 @@ class ARMDeploymentService {
     $status = $null
     $asyncResponse = $null
     $asyncSuccess = $false
-    $deploymentDetails = $null
 
     $statusCode = $HttpResponse.StatusCode
     if ($statusCode -notin @(201, 202)) {
@@ -367,35 +400,13 @@ class ARMDeploymentService {
       Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
     }
 
-    Write-PipelineLogger -LogType "info" -Message "Obtaining deployment details..."
-    switch ($ScopeObject.Type) {
-      "resourcegroups" {
-        $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $HttpResponse.InvokeResult.name
-      }
-      "subscriptions" {
-        $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $HttpResponse.InvokeResult.name
-      }
-      Default {
-        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
-      }
-    }
-
-    if (($asyncSuccess -eq $false) -and ($status -in @("Failed", "Canceled"))) {
-      Write-PipelineLogger -LogType "warning" -Message "Deployment: [ $($HttpResponse.InvokeResult.name) ] has completed. Provisioning State: [ $($status) ]"
-      Write-PipelineLogger -LogType "error" -Message "Code: [ $($asyncResponse.InvokeResult.error.details.code) ]" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Message: $($asyncResponse.InvokeResult.error.message)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Details: $($asyncResponse.InvokeResult.error.details.message)"
-    } if (($asyncSuccess -eq $true) -and ($status -eq "Succeeded")) {
+    if ($asyncSuccess -eq $true) {
       Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
-      Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($HttpResponse.InvokeResult.name) ] has completed. Provisioning State: [ $($status) ]"
-      $resourceDetails = Get-AzResource | Where-Object { $_.Name -eq $deploymentDetails[0].TargetResource.Split("/")[-1] }
-      Write-PipelineLogger -LogType "success" -Message "Provisioned: [ $($resourceDetails.ResourceType) ] with Resource ID : [ $($resourceDetails.ResourceId) ]"
     } else {
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($HttpResponse.InvokeResult.name) ] has an unknown error" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "An error occurred while waiting for the asynchronous operation to complete."
+      Write-PipelineLogger -LogType "error" -Message "The asynchronous operation has failed." -NoFailOnError
     }
 
-    return $deploymentDetails
+    return $asyncResponse
   }
 
   # Invokes a Rest call to azure and adds the token to header parameter
