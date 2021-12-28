@@ -21,8 +21,8 @@ function New-ARMDeployment {
     .PARAMETER SubscriptionId
       The name of the subscription. Required for both resource group or subscription scopes.
 
-    .PARAMETER ManagementGroupName
-      The name of the management group for which to return a scope object.
+    .PARAMETER ManagementGroupId
+      The Id of the management group for which to return a scope object.
 
     .PARAMETER DefaultDeploymentRegion
       The default deployment region. E.g. EastUS.
@@ -102,8 +102,8 @@ function New-ARMDeployment {
     [string] $ResourceGroupName,
 
     [Parameter()]
-    [Alias('MgName')]
-    [string] $ManagementGroupName,
+    [Alias('MgId')]
+    [string] $ManagementGroupId,
 
     [Parameter(Mandatory = $false)]
     [Alias('SubId')]
@@ -179,7 +179,7 @@ function New-ARMDeployment {
         }
         'managementgroup' {
           if ($templateObj.'$schema' -match [regex]::Escape('managementGroupDeploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -ManagementGroupName $ManagementGroupName -ErrorAction Stop -WhatIf:$false
+            $scopeObject = New-ARMScope -Scope $scope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
           } else {
             Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope managementgroup."
             return
