@@ -53,7 +53,7 @@ function New-ARMScope {
     Write-Debug ('{0} entered' -f $MyInvocation.MyCommand)
 
     # lets construct the scope
-    if ($ResourceGroupName -and $scope -eq "resourcegroup") {
+    if (($ResourceGroupName -and $SubscriptionId) -and ($scope -eq "resourcegroup")) {
       $scopePath = '/subscriptions/{0}/resourceGroups/{1}' -f $SubscriptionId, $ResourceGroupName
     } elseif ($SubscriptionId -and $scope -eq "subscription") {
       $scopePath = '/subscriptions/{0}' -f $SubscriptionId
