@@ -25,6 +25,7 @@ class ARMDeploymentScope {
   ARMDeploymentScope([string] $Scope) {
     $this.InitializeScopeVariables($Scope)
   }
+  #endregion
 
   # Method: Initialize scope variables
   hidden [object] InitializeScopeVariables([string] $Scope) {
@@ -60,10 +61,12 @@ class ARMDeploymentScope {
 
     return $this.ScopeObject
   }
+  #endregion
 
   [string] ToString() {
     return $this.Scope
   }
+  #endregion
 
   # Method: Check management group tenant root scope
   [string] IsTenant() {
@@ -72,6 +75,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Check if management group scope
   [string] IsManagementGroup() {
@@ -80,6 +84,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Check if subscription scope
   [string] IsSubscription() {
@@ -88,6 +93,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Check if resource group scope
   [string] IsResourceGroup() {
@@ -96,6 +102,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Get Subscription DisplayName
   [object] GetSubscription() {
@@ -110,18 +117,20 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
-  # Check if user or SPN is logged in
-  [void] IsLoggedIn() {
-    try {
-      $context = Get-AzContext
-      return ($null -ne $context)
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running IsLoggedIn. Details $($_.Exception.Message)"
+  # Method: Check if user or SPN is logged in
+  [object] IsLoggedIn() {
+    $context = Get-AzContext
+    if ($null -eq $context) {
+      return $null
+    } else {
+      return $context
     }
   }
+  #endregion
 
-  # Set the subscription context
+  # Method: Set the subscription context
   [void] SetSubscriptionContext() {
     try {
       if ($this.Scope -match $this.regex_subscriptionExtract) {
@@ -133,8 +142,9 @@ class ARMDeploymentScope {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
     }
   }
+  #endregion
 
-  # Get Management Group info
+  # Method: Get Management Group info
   [object] GetManagementGroup() {
     if ($this.GetManagementGroupName()) {
       foreach ($mgmt in (Get-AzManagementGroup -ErrorAction SilentlyContinue)) {
@@ -156,7 +166,9 @@ class ARMDeploymentScope {
 
     return $null
   }
+  #endregion
 
+  # Method: Get Management Group name
   [string] GetManagementGroupName() {
     if ($this.Scope -match $this.regex_managementgroupExtract) {
       $mgId = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
@@ -182,8 +194,9 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
-  # Get an existing resource group
+  # Method: Get an existing resource group
   [object] GetResourceGroup() {
     try {
       if ($this.Scope -match $this.regex_resourceGroupExtract) {
@@ -203,3 +216,4 @@ class ARMDeploymentScope {
     }
   }
 }
+#endregion

@@ -220,7 +220,7 @@ function New-ARMDeployment {
         if ($Scope -eq "resourcegroup") {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
           if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
+            Write-PipelineLogger -LogType "warning" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
 
             if ($PSCmdlet.ShouldProcess("Resource group [$ResourceGroupName] in location [$DefaultDeploymentRegion]", 'Create')) {
               $deploymentService.CreateResourceGroup($ScopeObject, $DefaultDeploymentRegion)
@@ -243,7 +243,7 @@ function New-ARMDeployment {
             )
           }
         } elseif ($ValidateWhatIf.IsPresent) {
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Processing"
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Initializing"
           if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'ValidateWhatIf')) {
             $deploymentService.ExecuteValidationWhatIf(
               $scopeObject,
@@ -251,9 +251,10 @@ function New-ARMDeployment {
               $templateParameterObj,
               $DefaultDeploymentRegion
             )
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Completed"
           }
         } else {
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Processing"
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
 
           if ($PSCmdlet.ShouldProcess("ARM Deployment [$scope]", 'Create')) {
             $deployment = $deploymentService.ExecuteDeployment(
@@ -267,7 +268,7 @@ function New-ARMDeployment {
           }
 
           if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Removing.DeploymentHistory"
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Initializing"
             if ($PSCmdlet.ShouldProcess("Remove Deployment History [$scope]", 'Remove')) {
               $cleanup = $deploymentService.RemoveDeploymentHistory(
                 $scopeObject,
@@ -275,7 +276,7 @@ function New-ARMDeployment {
               )
 
               if ($cleanup -eq "true") {
-                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Removing.DeploymentHistory.Success"
+                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Completed"
               } else {
                 Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Removing.DeploymentHistory.Failed" -NoFailOnError
               }
@@ -283,7 +284,7 @@ function New-ARMDeployment {
           }
         }
       } elseif ($TeardownEnvironment.IsPresent) {
-        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Processing"
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Initializing"
         if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$scope]", 'Destroy')) {
           $rgFound = $deploymentService.GetResourceGroup(
             $scopeObject
@@ -297,11 +298,16 @@ function New-ARMDeployment {
               $scopeObject
             )
 
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleted"
+
             Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
             $deploymentService.RemoveResourceGroup(
               $ScopeObj
             )
+
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleted"
           }
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Completed"
         }
       } else {
         Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"

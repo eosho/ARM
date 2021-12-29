@@ -1,4 +1,68 @@
-class ARMDeploymentService {
+class IDeploymentService {
+  <#
+  * Returns the deployment service.
+  *
+  * @return the deployment service
+  #>
+  [PSCustomObject] ExecuteDeployment(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [PSCustomObject] ExecuteValidation(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [PSCustomObject] ExecuteValidationWhatIf(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [object] InvokeARMOperation(
+    [PSObject] $ScopeObject,
+    [object] $DeploymentTemplate,
+    [object] $DeploymentParameters,
+    [string] $Location,
+    [string] $Operation
+  ) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] SetSubscriptionContext([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [object] CreateResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [object] GetResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] RemoveResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+}
+
+class ARMDeploymentService : IDeploymentService {
   # Deployment
   [string] $ArmResourceGroupDeploymentUri
   [string] $ArmSubscriptionDeploymentUri
@@ -13,6 +77,8 @@ class ARMDeploymentService {
   [string] $ArmResourceGroupWhatIfValidationUri
   [string] $ArmSubscriptionWhatIfValidationUri
   [string] $ArmManagementGroupWhatIfValidationUri
+
+  ARMDeploymentService() {}
 
   # Method: Executes ARM operation for deployment
   [PSCustomObject] ExecuteDeployment([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
@@ -364,62 +430,6 @@ class ARMDeploymentService {
   }
   #endregion
 
-  # Method: Format the deployment output
-  hidden [object] FormatDeploymentOutputs([object] $DeploymentOutputs) {
-    try {
-      $outputs = @{}
-      if ($null -ne $DeploymentOutputs) {
-         Write-Debug "Deployment outputs type is: $($DeploymentOutputs.GetType())"
-
-         # DeploymentOutputs are exposed as a Dictionary
-         if (($null -eq $DeploymentOutputs.GetType().ToString().ToLower().Contains("system.collections.generic.dictionary")) -and ($null -eq $DeploymentOutputs.GetType().ToString().ToLower().Contains("hashtable"))) {
-           throw "Outputs must be a Hashtable or Dictionary type"
-         }
-
-         $DeploymentOutputs.Keys | ForEach-Object {
-           $key = $_
-
-           # We use .Type because a deployment output contains two keys, .Type and .Value.
-           if ($DeploymentOutputs.$key.Type.Equals("Array", [StringComparison]::InvariantCultureIgnoreCase)) { 
-             $outputAsArray = @()
-
-             # Create a new Powershell array only when the type is JArray
-             if ($DeploymentOutputs.$key.Value.GetType().ToString().ToLower().Contains("jarray")) {
-               $DeploymentOutputs.$key.Value.ToString() | ConvertFrom-Json | ForEach-Object {
-                 $outputAsArray += $_
-               }
-             } else {
-               $outputAsArray = $DeploymentOutputs.$key.Value
-             }
-
-             $outputs += @{
-               $key = @{
-                 "Type" = "Array"
-                 "Value" = $outputAsArray
-               }
-             }
-           } else {
-             $outputs += @{
-               $key = @{
-                 "Type" = $DeploymentOutputs.$key.Type
-                 "Value" = $DeploymentOutputs.$key.Value
-               }
-             }
-           }
-         }
-
-         return $outputs
-      } else {
-        Write-Debug "No deployment outputs"
-        return $null
-      }
-    } catch {
-        Write-Host "An error ocurred while running FormatDeploymentOutputs"
-        throw $_
-    }
-  }
-  #endregion
-
   # Method: Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
@@ -602,7 +612,7 @@ class ARMDeploymentService {
   # Method: Create a resource group
   [object] CreateResourceGroup([PSObject] $ScopeObject, [string] $Location) {
     try {
-      return New-AzResourceGroup -Name $ScopeObject.Name -Location $Location -ErrorAction SilentlyContinue
+      return New-AzResourceGroup -Name $ScopeObject.Name -Location $Location -ErrorAction Stop
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroup. Details: $($_.Exception.Message)"
       throw $_
@@ -624,10 +634,9 @@ class ARMDeploymentService {
   # Method: Remove an existing resource group
   [void] RemoveResourceGroup([PSObject] $ScopeObject) {
     try {
-      $id = $ScopeObject.Scope
       $resourceGroup = $this.GetResourceGroup($ScopeObject)
       if ($null -ne $resourceGroup) {
-        Remove-AzResourceGroup -Id $id -Force -ErrorAction 'SilentlyContinue' -AsJob
+        $resourceGroup | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroup. Details: $($_.Exception.Message)"
@@ -639,12 +648,10 @@ class ARMDeploymentService {
   # Method: Remove resource lock on the existing resource group
   [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
     try {
-      $resourceId = $ScopeObject.Scope
-      $allLocks = Get-AzResourceLock -Scope $resourceId -ErrorAction SilentlyContinue | Where-Object "ProvisioningState" -ne "Deleting"
-
+      $allLocks = Get-AzResourceLock -Scope $ScopeObject.Scope -ErrorAction SilentlyContinue | Where-Object { $_ProvisioningState -ne "Deleting" }
       if ($null -ne $allLocks) {
         $allLocks | ForEach-Object {
-          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction 'SilentlyContinue'
+          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction SilentlyContinue
         }
       }
     } catch {
