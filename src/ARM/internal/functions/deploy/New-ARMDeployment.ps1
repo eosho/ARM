@@ -117,15 +117,15 @@ function New-ARMDeployment {
   [Alias("Invoke-ARMDeployment")]
   param (
     [Parameter(Mandatory = $true)]
-    [Alias('TemplatePath')]
+    [Alias("TemplatePath", "temppath")]
     [string] $TemplateFilePath,
 
     [Parameter(Mandatory = $false)]
-    [Alias('ParameterPath')]
+    [Alias("ParameterPath", "parampath")]
     [string] $TemplateParameterFilePath,
 
     [Parameter(Mandatory = $false)]
-    [Alias('ParameterObject')]
+    [Alias("ParameterObject", "paramobj")]
     [string] $TemplateParameterObject,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
@@ -133,19 +133,23 @@ function New-ARMDeployment {
     [string] $Scope,
 
     [Parameter(Mandatory = $false)]
-    [Alias('RGName')]
+    [ValidateNotNullOrEmpty()]
+    [Alias("RGName", "rg")]
     [string] $ResourceGroupName,
 
     [Parameter()]
-    [Alias('MgId')]
+    [ValidateNotNullOrEmpty()]
+    [Alias("MgId", "mg")]
     [string] $ManagementGroupId,
 
     [Parameter(Mandatory = $false)]
-    [Alias('SubId')]
+    [ValidateNotNullOrEmpty()]
+    [Alias("SubId", "sub" )]
     [string] $SubscriptionId = (Get-AzContext).Subscription.Id,
 
     [Parameter(Mandatory = $false)]
-    [Alias('Location')]
+    [ValidateNotNullOrEmpty()]
+    [Alias("Location", "loc")]
     [string] $DefaultDeploymentRegion = "EastUS",
 
     [Parameter(Mandatory = $false)]
