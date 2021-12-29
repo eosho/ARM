@@ -230,15 +230,6 @@ class ARMDeploymentService : IDeploymentService {
 
           # get async operation details for deployment
           $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
-
-          # if successful deployment, print the resource Ids
-          if ($deploymentDetails.InvokeResult.status -eq "Succeeded") {
-            # retrieve the deployment details
-            $resourceState = $this.RetrieveDeploymentData($ScopeObject, $deployment)
-            if ($resourceState) {
-              Write-PipelineLogger -LogType "info" -Message "Resource ID(s): [ $($resourceState.resourceIds) ] provisioned"
-            }
-          }
         } elseif ($deployment.StatusMessage) {
           $deploymentDetails = $deployment.StatusMessage | ConvertFrom-Json
 
@@ -369,36 +360,6 @@ class ARMDeploymentService : IDeploymentService {
     }
 
     return $uri
-  }
-  #endregion
-
-  # Method: Retrieve deployment data
-  hidden [hashtable] RetrieveDeploymentData([PSObject] $ScopeObject, [object] $Deployment) {
-    $resourceIds = @()
-    
-    # Let's get all resource Ids created in a given deployment
-    switch ($ScopeObject.Type) {
-      "managementgroups" {
-        Get-AzManagementGroupDeploymentOperation -ManagementGroupId $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.Name | Select TargetResource | ForEach-Object {
-          $resourceIds += $_.TargetResource
-        }
-      }
-      "subscriptions" {
-        Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.Name | Select TargetResource | ForEach-Object {
-          $resourceIds += $_.TargetResource
-        }
-      }
-      "resourcegroups" {
-        Get-AzResourceGroupDeploymentOperation -Name $Deployment.InvokeResult.Name -ResourceGroupName $ScopeObject.Name -SubscriptionId $subscriptionId | Select Properties | ForEach-Object {
-          $resourceIds += $_.properties.targetResource.id
-        }
-      }
-    }
- 
-    # Remove any duplicate ids
-    $resourceIds = $resourceIds | Select -Unique -join ","
-
-    return $resourceIds
   }
   #endregion
 
@@ -653,10 +614,16 @@ class ARMDeploymentService : IDeploymentService {
     try {
       $module = Get-InstalledModule -Name "Az" -ErrorAction SilentlyContinue
       if (-not $module) {
+        Write-PipelineLogger -LogType "info" -Message "Az module is not installed. Installing module"
         Install-Module -Name "Az" -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
       } else {
-        Import-Module Az -Force
-        Write-PipelineLogger -LogType "info" -Message "Az module already installed"
+        if ($module.Version -ne '7.0.0') {
+          Write-PipelineLogger -LogType "info" -Message "Az module is not latest. Installing latest version."
+          Install-Module -Name "Az" -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
+        } else {
+          Write-PipelineLogger -LogType "info" -Message "Az module already installed. Importing module."
+          Import-Module Az -Force -ErrorAction Stop
+        }
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "$($_.Exception.Message)"

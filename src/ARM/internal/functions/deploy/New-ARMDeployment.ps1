@@ -12,6 +12,9 @@ function New-ARMDeployment {
     .PARAMETER TemplateParameterFilePath
       Path where the parameters of the ARM templates can be found.
 
+    .PARAMETER TemplateParameterObject
+      Object that contains the parameters of the ARM template.
+
     .PARAMETER Scope
       The deployment scope - resource group or subscription.
 
@@ -35,6 +38,9 @@ function New-ARMDeployment {
 
     .PARAMETER TearDownEnvironment
       Switch to delete the entire resource group and its contents.
+
+    .PARAMETER SkipModuleCheck
+      Switch to validate latest Az module is installed locally.
 
     .PARAMETER Confirm
       If this switch is enabled, you will be prompted for confirmation before executing any operations that change state.
@@ -89,9 +95,13 @@ function New-ARMDeployment {
     [Alias('TemplatePath')]
     [string] $TemplateFilePath,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [Alias('ParameterPath')]
     [string] $TemplateParameterFilePath,
+
+    [Parameter(Mandatory = $false)]
+    [Alias('ParameterObject')]
+    [string] $TemplateParameterObject,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription", "managementgroup")]
@@ -123,7 +133,10 @@ function New-ARMDeployment {
     [switch] $TearDownEnvironment,
 
     [Parameter(Mandatory = $false)]
-    [switch] $RemoveDeploymentHistory
+    [switch] $RemoveDeploymentHistory,
+
+    [Parameter(Mandatory = $false)]
+    [switch] $SkipModuleCheck
   )
 
   begin {
@@ -133,6 +146,13 @@ function New-ARMDeployment {
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
     $deploymentService = [ARMDeploymentService]::new()
     #endregion Initialize deployment service
+
+    #region Validate Az module
+    if ($SkipModuleCheck.IsPresent) {
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ValidateAzModule.Checking"
+      $deploymentService.AzModuleIsInstalled()
+    }
+    #endregion
   }
   process {
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Processing"
@@ -145,15 +165,25 @@ function New-ARMDeployment {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.Content.TemplateFilePath.NotFound"
       return
     }
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Resolving.TemplateFilePath.Success"
     #endregion Parse Content
 
     #region Resolve template parameters
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Resolving.TemplateParameterFilePath"
     if (Test-Path -Path $TemplateParameterFilePath) {
       $templateParameterObj = Get-Content -Path $TemplateParameterFilePath -Raw | ConvertFrom-Json -Depth 99
-    } else {
+    } elseif ($TemplateParameterObject) {
+      $templateParameterObj = $TemplateParameterObject
+    }
+    else {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameters.TemplateParameterFilePath.NotFound"
       return
+    }
+
+    if ($templateParameterObj) {
+      Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Resolving.TemplateParameterObject.Success"
+    } else {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameterObject.NotFound"
     }
     #endregion Resolve template parameters
 
@@ -193,10 +223,10 @@ function New-ARMDeployment {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)"
     }
 
-    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ScopeObject.Successful"
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ScopeObject.Success"
 
     if (-not $scopeObject) {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Empty"
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.NotFound"
       return
     }
     #endregion Resolve Scope
@@ -210,7 +240,7 @@ function New-ARMDeployment {
       return
     }
 
-    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Subscription.Context.Initialized"
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Subscription.Context.Success"
     #endregion set subscription context
 
     #region deployment stage
@@ -233,7 +263,7 @@ function New-ARMDeployment {
         #endregion
 
         if ($Validate.IsPresent) {
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Processing"
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Initializing"
           if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
             $deploymentService.ExecuteValidation(
               $scopeObject,
@@ -251,7 +281,7 @@ function New-ARMDeployment {
               $templateParameterObj,
               $DefaultDeploymentRegion
             )
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Completed"
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.WhatIf.Success"
           }
         } else {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
@@ -264,7 +294,7 @@ function New-ARMDeployment {
               $DefaultDeploymentRegion
             )
 
-            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Completed"
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Success"
           }
 
           if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
@@ -276,7 +306,7 @@ function New-ARMDeployment {
               )
 
               if ($cleanup -eq "true") {
-                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Completed"
+                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Success"
               } else {
                 Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Removing.DeploymentHistory.Failed" -NoFailOnError
               }
