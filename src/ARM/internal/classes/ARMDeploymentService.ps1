@@ -648,6 +648,22 @@ class ARMDeploymentService : IDeploymentService {
   }
   #endregion
 
+  # Method: Validate latest Az module is installed and imported
+  [void] AzModuleIsInstalled() {
+    try {
+      $module = Get-InstalledModule -Name "Az" -ErrorAction SilentlyContinue
+      if (-not $module) {
+        Install-Module -Name "Az" -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
+      } else {
+        Import-Module Az -Force
+        Write-PipelineLogger -LogType "info" -Message "Az module already installed"
+      }
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "$($_.Exception.Message)"
+    }
+  }
+  #endregion
+
   # Method: Create a resource group
   [object] CreateResourceGroup([PSObject] $ScopeObject, [string] $Location) {
     try {
