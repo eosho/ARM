@@ -599,11 +599,21 @@ class ARMDeploymentService {
   }
   #endregion
 
+  # Method: Create a resource group
+  [object] CreateResourceGroup([PSObject] $ScopeObject, [string] $Location) {
+    try {
+      return New-AzResourceGroup -Name $ScopeObject.Name -Location $Location -ErrorAction SilentlyContinue
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroup. Details: $($_.Exception.Message)"
+      throw $_
+    }
+  }
+  #endregion
+
   # Method: Get an existing resource group
   [object] GetResourceGroup([PSObject] $ScopeObject) {
     try {
-      $resourceId = $ScopeObject.Scope
-      return Get-AzResourceGroup -Id $resourceId -ErrorAction SilentlyContinue
+      return Get-AzResourceGroup -Id $ScopeObject.Scope -ErrorAction SilentlyContinue
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running GetResourceGroup. Details: $($_.Exception.Message)"
       throw $_
