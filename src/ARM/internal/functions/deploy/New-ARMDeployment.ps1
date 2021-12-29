@@ -28,7 +28,7 @@ function New-ARMDeployment {
       The Id of the management group for which to return a scope object.
 
     .PARAMETER DefaultDeploymentRegion
-      The default deployment region. E.g. EastUS.
+      The default deployment region. E.g. EastUS or WestUS.
 
     .PARAMETER Validate
       Switch to validate deployment against the ARM API.
@@ -63,14 +63,39 @@ function New-ARMDeployment {
       $paramArgs = @{
         Scope                     = 'resourcegroup'
         SubscriptionId            = $(Get-AzContext).Subscription.Id
-        DeploymentTemplate        = '.\aks\bicep\main.json'
+        DeploymentTemplate        = '.\aks\bicep\main.rg.json'
         TemplateParameterFilePath = 'parameters.json'
         DefaultDeploymentRegion   = "eastus2"
         ResourceGroupName         = 'demo-rg'
       }
-      Invoke-ARMDeployment -Validate
+      Invoke-ARMDeployment @paramArgs -Validate
 
       Runs the ARM template validation on a resource group deployment.
+
+    .EXAMPLE
+      $paramArgs = @{
+        Scope                     = 'subscription'
+        SubscriptionId            = $(Get-AzContext).Subscription.Id
+        DeploymentTemplate        = '.\aks\bicep\main.sub.json'
+        TemplateParameterFilePath = 'parameters.json'
+        DefaultDeploymentRegion   = "eastus2"
+      }
+      Invoke-ARMDeployment @paramArgs
+
+      Runs the ARM template validation on a subscription deployment.
+
+    .EXAMPLE
+      $paramArgs = @{
+        Scope                     = 'managementgroup'
+        SubscriptionId            = $(Get-AzContext).Subscription.Id
+        ManagementGroupId         = 'demo-mg'
+        DeploymentTemplate        = '.\aks\bicep\main.mg.json'
+        TemplateParameterFilePath = 'parameters.json'
+        DefaultDeploymentRegion   = "eastus2"
+      }
+      Invoke-ARMDeployment @paramArgs
+
+      Runs the ARM template validation on a management group deployment.
 
     .EXAMPLE
       New-ARMDeployment -Scope "resourcegroup" -SubscriptionId 'xxxx' -ResourceGroupName 'some-rg' -TearDownEnvironment
@@ -174,8 +199,7 @@ function New-ARMDeployment {
       $templateParameterObj = Get-Content -Path $TemplateParameterFilePath -Raw | ConvertFrom-Json -Depth 99
     } elseif ($TemplateParameterObject) {
       $templateParameterObj = $TemplateParameterObject
-    }
-    else {
+    } else {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Resolving.TemplateParameters.TemplateParameterFilePath.NotFound"
       return
     }
@@ -249,6 +273,7 @@ function New-ARMDeployment {
         #region create rg if scope is resourcegroups
         if ($Scope -eq "resourcegroup") {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
+
           if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
             Write-PipelineLogger -LogType "warning" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
 
@@ -263,7 +288,9 @@ function New-ARMDeployment {
         #endregion
 
         if ($Validate.IsPresent) {
+          #region validate deployment template
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Initializing"
+
           if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
             $deploymentService.ExecuteValidation(
               $scopeObject,
@@ -272,8 +299,11 @@ function New-ARMDeployment {
               $DefaultDeploymentRegion
             )
           }
+          #endregion
         } elseif ($ValidateWhatIf.IsPresent) {
+          #region validate whatif
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Initializing"
+
           if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'ValidateWhatIf')) {
             $deploymentService.ExecuteValidationWhatIf(
               $scopeObject,
@@ -283,7 +313,9 @@ function New-ARMDeployment {
             )
             Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.WhatIf.Success"
           }
+          #endregion
         } else {
+          #region create deployment
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
 
           if ($PSCmdlet.ShouldProcess("ARM Deployment [$scope]", 'Create')) {
@@ -296,7 +328,9 @@ function New-ARMDeployment {
 
             Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Success"
           }
+          #endregion
 
+          #region delete deployment history
           if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
             Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Initializing"
             if ($PSCmdlet.ShouldProcess("Remove Deployment History [$scope]", 'Remove')) {
@@ -312,33 +346,43 @@ function New-ARMDeployment {
               }
             }
           }
+          #endregion
         }
       } elseif ($TeardownEnvironment.IsPresent) {
+        #region teardown environment
         Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Initializing"
         if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$scope]", 'Destroy')) {
-          $rgFound = $deploymentService.GetResourceGroup(
-            $scopeObject
-          )
-
-          # Let's check if the resource group exists and the resource group name & its not in a deleting state
-          if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
-            # Start deleting the resource group locks (if any) and resource group
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleting"
-            $deploymentService.RemoveResourceGroupLock(
+          try {
+            $rgFound = $deploymentService.GetResourceGroup(
               $scopeObject
             )
 
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleted"
+            # Let's check if the resource group exists and the resource group name & its not in a deleting state
+            if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
+              # Start deleting the resource group locks (if any) and resource group
+              Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleting"
+              try {
+                $deploymentService.RemoveResourceGroupLock(
+                  $scopeObject
+                )
+                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
+              } catch {
+                Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
+              }
 
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
-            $deploymentService.RemoveResourceGroup(
-              $ScopeObj
-            )
+              Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
+              $deploymentService.RemoveResourceGroup(
+                $ScopeObj
+              )
 
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleted"
+              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceGroup.Deleted.Success"
+            }
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Completed"
+          } catch {
+            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Teardown.Failed. Details: $($_.Exception.Message)"
           }
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Completed"
         }
+        #endregion
       } else {
         Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"
       }
