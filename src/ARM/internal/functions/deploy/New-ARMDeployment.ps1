@@ -216,6 +216,22 @@ function New-ARMDeployment {
     #region deployment stage
     try {
       if (-not ($TeardownEnvironment.IsPresent)) {
+        #region create rg if scope is resourcegroups
+        if ($Scope -eq "resourcegroup") {
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
+          if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
+
+            if ($PSCmdlet.ShouldProcess("Resource group [$ResourceGroupName] in location [$DefaultDeploymentRegion]", 'Create')) {
+              $deploymentService.CreateResourceGroup($ScopeObject, $DefaultDeploymentRegion)
+              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.ResourceGroup.Created"
+            }
+          } else {
+            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup.Exists"
+          }
+        }
+        #endregion
+
         if ($Validate.IsPresent) {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Processing"
           if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
