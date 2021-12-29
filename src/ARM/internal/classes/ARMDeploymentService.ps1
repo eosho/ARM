@@ -364,6 +364,62 @@ class ARMDeploymentService {
   }
   #endregion
 
+  # Method: Format the deployment output
+  hidden [object] FormatDeploymentOutputs([object] $DeploymentOutputs) {
+    try {
+      $outputs = @{}
+      if ($null -ne $DeploymentOutputs) {
+         Write-Debug "Deployment outputs type is: $($DeploymentOutputs.GetType())"
+
+         # DeploymentOutputs are exposed as a Dictionary
+         if (($null -eq $DeploymentOutputs.GetType().ToString().ToLower().Contains("system.collections.generic.dictionary")) -and ($null -eq $DeploymentOutputs.GetType().ToString().ToLower().Contains("hashtable"))) {
+           throw "Outputs must be a Hashtable or Dictionary type"
+         }
+
+         $DeploymentOutputs.Keys | ForEach-Object {
+           $key = $_
+
+           # We use .Type because a deployment output contains two keys, .Type and .Value.
+           if ($DeploymentOutputs.$key.Type.Equals("Array", [StringComparison]::InvariantCultureIgnoreCase)) { 
+             $outputAsArray = @()
+
+             # Create a new Powershell array only when the type is JArray
+             if ($DeploymentOutputs.$key.Value.GetType().ToString().ToLower().Contains("jarray")) {
+               $DeploymentOutputs.$key.Value.ToString() | ConvertFrom-Json | ForEach-Object {
+                 $outputAsArray += $_
+               }
+             } else {
+               $outputAsArray = $DeploymentOutputs.$key.Value
+             }
+
+             $outputs += @{
+               $key = @{
+                 "Type" = "Array"
+                 "Value" = $outputAsArray
+               }
+             }
+           } else {
+             $outputs += @{
+               $key = @{
+                 "Type" = $DeploymentOutputs.$key.Type
+                 "Value" = $DeploymentOutputs.$key.Value
+               }
+             }
+           }
+         }
+
+         return $outputs
+      } else {
+        Write-Debug "No deployment outputs"
+        return $null
+      }
+    } catch {
+        Write-Host "An error ocurred while running FormatDeploymentOutputs"
+        throw $_
+    }
+  }
+  #endregion
+
   # Method: Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
