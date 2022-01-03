@@ -1,0 +1,30 @@
+# global variables
+
+variables:
+- name: vmImage
+  value: Ubuntu-latest
+
+- name: projectName
+  value: ARM
+
+- name: version
+  value: 1.0.0
+
+- name: artifactsLocation
+  value: $(Build.SourcesDirectory)/artifacts
+
+- name: resourceProviders
+  value: [
+    "Microsoft.Resources",
+    "Microsoft.Compute",
+    "Microsoft.Network",
+    "Microsoft.Storage"
+  ]
+
+- name: resourceProviderFeatures
+  value: [
+    {
+      "featureName": "AIWorkspacePreview",
+      "providerNamespace": "Microsoft.Insights"
+    }
+  ]

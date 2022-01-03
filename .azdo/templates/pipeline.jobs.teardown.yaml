@@ -1,0 +1,19 @@
+parameters:
+  scope: ''
+  serviceConnection: ''
+  subscriptionId: ''
+  resourceGroupName: ''
+
+jobs:
+- job: Teardown
+  displayName: Teardown environment
+  steps:
+  - checkout: self
+  - task: AzurePowerShell@5
+    displayName: Teardown environment
+    inputs:
+      azureSubscription: $(serviceConnection)
+      azurePowerShellVersion: 'Latest'
+      ScriptType: 'InlineScript'
+      Inline: |
+        Invoke-ARMDeployment -Scope $(Scope) -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment

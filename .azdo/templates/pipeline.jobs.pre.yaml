@@ -1,0 +1,17 @@
+parameters:
+  vmImage: ''
+
+jobs:
+  - job: 'Prerequisites'
+    pool:
+      vmImage: $(vmImage)
+    steps:
+      - checkout: self
+      - task: AzurePowerShell@5
+        displayName: Import Modules
+        inputs:
+          azureSubscription: $(serviceConnection)
+          azurePowerShellVersion: 'Latest'
+          ScriptType: 'InlineScript'
+          Inline: |
+            . $(System.DefaultWorkingDirectory)/src/ARM/internal/scripts/preimport.ps1
