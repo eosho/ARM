@@ -171,6 +171,9 @@ function New-ARMDeployment {
   begin {
     Write-Debug ("{0} entered" -f $MyInvocation.MyCommand)
 
+    #region execution timer
+    $start = $(Get-Date)
+
     #region Initialize deployment service
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
     $deploymentService = [ARMDeploymentService]::new()
@@ -403,6 +406,9 @@ function New-ARMDeployment {
   }
 
   end {
+    $stop = $(Get-Date)
+    Write-PipelineLogger -LogType "debug" -Message "Script execution time: $($($stop - $start).minutes) minutes and $($($stop - $start).seconds) seconds."
+
     Write-Debug ("{0} exited" -f $MyInvocation.MyCommand)
   }
 }
