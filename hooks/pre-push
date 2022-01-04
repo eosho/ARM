@@ -1,0 +1,20 @@
+#!/usr/bin/env pwsh
+
+Write-Host -Object "Running Pre-Push hook"
+
+$pesterInstalled = Get-Command -Name Invoke-Pester -ErrorAction SilentlyContinue
+if ($null -eq $pesterInstalled) {
+  Write-Error -Message 'Pester is not installed but is required to run QA. Fix by installing Pester (Install-Module Pester)' -ErrorAction Stop
+}
+
+Write-Host -Object "Running QA unit tests"
+$qaResult = Invoke-Pester -Script ./src/ARM/tests/qa/QA.tests.ps1 -Show Describe, Failed -PassThru
+if ( $qaResult.FailedCount -gt 0 ) {
+  Write-Error -Message 'QA tests errors were found in updated scripts' -ErrorAction Stop
+}
+
+# Write-Host -Object "Running Integration tests"
+# $intResult = Invoke-Pester -Script ./tests/Integration.tests.ps1 -Show Describe, Failed -PassThru
+# if ( $intResult.FailedCount -gt 0 ) {
+#   Write-Error -Message 'Integration test errors were found in updated scripts' -ErrorAction Stop
+# }

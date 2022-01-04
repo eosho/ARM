@@ -1,0 +1,15 @@
+#!/usr/bin/env pwsh
+
+Write-Host -Object "Running Pre-Commit hook"
+
+$currentBranch = git rev-parse --abbrev-ref HEAD
+
+if ($currentBranch -eq 'main') {
+  Write-Error -Message "You should not commit to 'main' as it will be blocked upstream. Please create a feature branch with naming convention feature/name 'git checkout -b feature/name'" -ErrorAction Stop
+} elseif ($currentBranch -eq 'dev') {
+  Write-Warning -Message "You should only commit to dev branch when working on solo projects"
+} elseif (-not ($currentBranch -cmatch '^[a-z0-9-]*\/[a-z0-9-]*$')) {
+  Write-Error -Message "BranchName: '$currentBranch' is not using feature branch naming convention. Please rename to feature/name lowercase 'git branch -m feature/name'" -ErrorAction Stop
+} else {
+  Write-Error "Unknown branch: $currentBranch" -ErrorAction Stop
+}
