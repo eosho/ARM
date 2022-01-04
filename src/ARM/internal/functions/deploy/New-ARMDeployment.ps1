@@ -176,8 +176,12 @@ function New-ARMDeployment {
     $start = $(Get-Date)
 
     #region Initialize deployment service
-    Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
-    $deploymentService = [ARMDeploymentService]::new()
+    try {
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
+      $deploymentService = [ARMDeploymentService]::new()
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.DeploymentService.InitializationFailed"
+    }
     #endregion Initialize deployment service
 
     #region Validate Az module
