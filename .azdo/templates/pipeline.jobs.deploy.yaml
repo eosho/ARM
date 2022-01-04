@@ -1,0 +1,115 @@
+parameters:
+  resourceGroupName: ''
+  environmentName: ''
+  region: ''
+  prefix: ''
+  vmImage: ''
+  serviceConnection: ''
+  validateDeploymentType: ''
+  deploymentScope: ''
+
+jobs:
+  - job: Deploy_Shared_Infra
+    displayName: 'Shared Infra'
+    pool:
+      vmImage: "${{ parameters.vmImage }}"
+    steps:
+      - checkout: self
+
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download artifacts"
+        inputs:
+          buildType: "current"
+          downloadType: "single"
+          artifactName: "deployment"
+          downloadPath: "$(Build.ArtifactsDirectory)"
+
+      - task: AzurePowerShell@5
+        displayName: "Deploy Bicep template"
+        inputs:
+          azureSubscription: "$(serviceConnection)"
+          ScriptType: "InlineScript"
+          Inline: |
+            # load module
+            . $(System.DefaultWorkingDirectory)/src/scripts/ImportModules.ps1
+
+            $paramArgs = @{}
+            if ('${{ parameters.validateDeploymentType }}' -eq 'validate') {
+              $paramArgs += @{
+                Validate = $true
+              }
+            } elseif ('${{ parameters.validateDeploymentType }}' -eq 'validateWhatIf') {
+                $paramArgs += @{
+                  ValidateWhatIf = $true
+                }
+              }
+            }
+
+            $paramArgs += @{
+              SubscriptionId        = "$(ARM_SUBSCRIPTION_ID)"
+              DeploymentTemplate    = '$(baseFilePath)/data/sample/main.$(deploymentScope).json'
+              DeploymentParamObject = @{
+                environmentName              = $(environmentName)
+                eventhubConfig               = "$(resourceGroupName)"
+                digServiceBusQueueNames      = ""
+                pharmacyServiceBusQueueNames = "$(prefix)"
+                rxServiceBusQueueNames       = "$(ARM_CLIENT_SECRET)"
+                subnetAddressPrefix          = "$(ARM_CLIENT_ID)"
+                apimSubnetAddressPrefix      = "$(containerRegistryName)"
+                virtualNetworkAddressSpace   = "$(ARM_CLIENT_ID)"
+              }
+              Location              = "$(region)"
+            }
+
+            Invoke-ARMDeployment @paramArgs
+          azurePowerShellVersion: "LatestVersion"
+
+  - job: Deploy_App_Infra
+    displayName: "App Infra"
+    pool:
+      vmImage: "${{ parameters.vmImage }}"
+    steps:
+      - checkout: self
+
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download artifacts"
+        inputs:
+          buildType: "current"
+          downloadType: "single"
+          artifactName: "harmony"
+          downloadPath: "$(Build.ArtifactsDirectory)"
+
+      - task: AzurePowerShell@5
+        displayName: "Deploy Bicep template"
+        inputs:
+          azureSubscription: "$(serviceConnection)"
+          ScriptType: "InlineScript"
+          Inline: |
+            # load module
+            . $(System.DefaultWorkingDirectory)/src/scripts/ImportModules.ps1
+
+            $paramArgs = @{}
+            if ('${{ parameters.validateDeployment }}' -eq 'true') {
+              $paramArgs += @{
+                Validate = $true
+              }
+            }
+
+            $paramArgs += @{
+              SubscriptionId        = "$(ARM_SUBSCRIPTION_ID)"
+              DeploymentTemplate    = '$(Build.ArtifactsDirectory)/bicep/app.json'
+              DeploymentParamObject = @{
+                environmentName              = $(environmentName)
+                eventhubConfig               = "$(resourceGroupName)"
+                digServiceBusQueueNames      = ""
+                pharmacyServiceBusQueueNames = "$(prefix)"
+                rxServiceBusQueueNames       = "$(ARM_CLIENT_SECRET)"
+                subnetAddressPrefix          = "$(ARM_CLIENT_ID)"
+                apimSubnetAddressPrefix      = "$(containerRegistryName)"
+                virtualNetworkAddressSpace   = "$(ARM_CLIENT_ID)"
+              }
+              Location              = "$(region)"
+            }
+
+            Invoke-ARMDeployment @paramArgs
+          azurePowerShellVersion: "LatestVersion"

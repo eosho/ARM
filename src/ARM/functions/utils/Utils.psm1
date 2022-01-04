@@ -96,27 +96,6 @@ function ConvertTo-HashTable {
   }
 }
 
-function Get-TemplateType {
-  [CmdletBinding()]
-  param (
-    [Parameter(Mandatory = $true)]
-    [string] $TemplateFilePath
-  )
-
-  # Determine the template type - .bicep or .json
-  if ((Split-Path -Path $TemplateFilePath -Extension) -eq '.bicep') {
-    Write-PipelineLogger -LogType "info" -Message "[$($MyInvocation.MyCommand)] - Template is in .bicep format, converting it to an object"
-    $templateObj = az bicep build --file $TemplateFilePath --stdout | ConvertFrom-Json
-  } elseif ((Split-Path -Path $TemplateFilePath -Extension) -eq '.json') {
-    Write-PipelineLogger -LogType "info" -Message "[$($MyInvocation.MyCommand)] - Template is in .json format, converting it to an object"
-    $templateObj = Get-Content $TemplateFilePath | ConvertFrom-Json
-  } else {
-    Write-PipelineLogger -LogType "error" -Message "[$($MyInvocation.MyCommand)] - Template is not in .bicep or .json format"
-  }
-
-  return $templateObj
-}
-
 function Get-NestedResourceList {
   [CmdletBinding()]
   param(

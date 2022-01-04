@@ -1,0 +1,821 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.4.1008.15138",
+      "templateHash": "8881914742347486329"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2",
+      "metadata": {
+        "description": "Deployment region name"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "eroshoko-rg",
+      "metadata": {
+        "description": "Deployment resource group name"
+      }
+    },
+    "keyVaultName": {
+      "type": "string",
+      "defaultValue": "eroshoko-kv",
+      "metadata": {
+        "description": "Keyvault resource name"
+      }
+    }
+  },
+  "functions": [],
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "name": "eroshoko-rg",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceGroupName": {
+            "value": "[parameters('resourceGroupName')]"
+          },
+          "tags": {
+            "value": {}
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1008.15138",
+              "templateHash": "14310904720422137175"
+            }
+          },
+          "parameters": {
+            "resourceGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "REQUIRED. The name of the Resource Group"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "REQUIRED. Location of the Resource Group."
+              }
+            },
+            "lockForDeletion": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Optional. Switch to lock Resource Group from deletion."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "REQUIRED. Tags of the Resource Group."
+              }
+            }
+          },
+          "functions": [],
+          "resources": [
+            {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[parameters('resourceGroupName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {}
+            },
+            {
+              "condition": "[equals(parameters('lockForDeletion'), true())]",
+              "type": "Microsoft.Authorization/locks",
+              "apiVersion": "2016-09-01",
+              "name": "[format('{0}-lock', parameters('resourceGroupName'))]",
+              "properties": {
+                "level": "CanNotDelete"
+              }
+            }
+          ],
+          "outputs": {
+            "resourceGroupName": {
+              "type": "string",
+              "value": "[parameters('resourceGroupName')]"
+            },
+            "resourceGroupId": {
+              "type": "string",
+              "value": "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('keyVaultName')]",
+      "resourceGroup": "eroshoko-rg",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "name": {
+            "value": "[parameters('keyVaultName')]"
+          },
+          "tags": {
+            "value": {}
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.1008.15138",
+              "templateHash": "15674728545402286900"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "defaultValue": "",
+              "maxLength": 24,
+              "metadata": {
+                "description": "Optional. Name of the Key Vault. If no name is provided, then unique name will be created."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Optional. Location for all resources."
+              }
+            },
+            "accessPolicies": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Optional. Array of access policies object"
+              }
+            },
+            "secrets": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Optional. All secrets to create"
+              }
+            },
+            "keys": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Optional. All keys to create"
+              }
+            },
+            "enableVaultForDeployment": {
+              "type": "bool",
+              "defaultValue": true,
+              "allowedValues": [
+                true,
+                false
+              ],
+              "metadata": {
+                "description": "Optional. Specifies if the vault is enabled for deployment by script or compute"
+              }
+            },
+            "enableVaultForTemplateDeployment": {
+              "type": "bool",
+              "defaultValue": true,
+              "allowedValues": [
+                true,
+                false
+              ],
+              "metadata": {
+                "description": "Optional. Specifies if the vault is enabled for a template deployment"
+              }
+            },
+            "enableVaultForDiskEncryption": {
+              "type": "bool",
+              "defaultValue": true,
+              "allowedValues": [
+                true,
+                false
+              ],
+              "metadata": {
+                "description": "Optional. Specifies if the azure platform has access to the vault for enabling disk encryption scenarios."
+              }
+            },
+            "enableSoftDelete": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Optional. Switch to enable/disable Key Vault's soft delete feature."
+              }
+            },
+            "softDeleteRetentionInDays": {
+              "type": "int",
+              "defaultValue": 90,
+              "metadata": {
+                "description": "Optional. softDelete data retention days. It accepts >=7 and <=90."
+              }
+            },
+            "enableRbacAuthorization": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Optional. Property that controls how data actions are authorized. When true, the key vault will use Role Based Access Control (RBAC) for authorization of data actions, and the access policies specified in vault properties will be ignored (warning: this is a preview feature). When false, the key vault will use the access policies specified in vault properties, and any policy stored on Azure Resource Manager will be ignored. If null or not specified, the vault is created with the default value of false. Note that management actions are always authorized with RBAC."
+              }
+            },
+            "createMode": {
+              "type": "string",
+              "defaultValue": "default",
+              "metadata": {
+                "description": "Optional. The vault's create mode to indicate whether the vault need to be recovered or not. - recover or default."
+              }
+            },
+            "enablePurgeProtection": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Optional. Provide 'true' to enable Key Vault's purge protection feature."
+              }
+            },
+            "vaultSku": {
+              "type": "string",
+              "defaultValue": "premium",
+              "allowedValues": [
+                "premium",
+                "standard"
+              ],
+              "metadata": {
+                "description": "Optional. Specifies the SKU for the vault"
+              }
+            },
+            "networkAcls": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Optional. Service endpoint object information"
+              }
+            },
+            "vNetId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional. Virtual Network resource identifier, if networkAcls is passed, this value must be passed as well"
+              }
+            },
+            "diagnosticSettingName": {
+              "type": "string",
+              "defaultValue": "service",
+              "metadata": {
+                "description": "Optional. The name of the Diagnostic setting."
+              }
+            },
+            "diagnosticLogsRetentionInDays": {
+              "type": "int",
+              "defaultValue": 90,
+              "maxValue": 90,
+              "minValue": 0,
+              "metadata": {
+                "description": "Optional. Specifies the number of days that logs will be kept for; a value of 0 will retain data indefinitely."
+              }
+            },
+            "diagnosticStorageAccountId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional. Resource identifier of the Diagnostic Storage Account."
+              }
+            },
+            "workspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional. Resource identifier of Log Analytics."
+              }
+            },
+            "eventHubAuthorizationRuleId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional. Resource ID of the event hub authorization rule for the Event Hubs namespace in which the event hub should be created or streamed to."
+              }
+            },
+            "eventHubName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Optional. Name of the event hub within the namespace to which logs are streamed. Without this, an event hub is created for each log category."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Optional. Resource tags."
+              }
+            },
+            "baseTime": {
+              "type": "string",
+              "defaultValue": "[utcNow('u')]",
+              "metadata": {
+                "description": "Generated. Do not provide a value! This date value is used to generate a SAS token to access the modules."
+              }
+            },
+            "logsToEnable": {
+              "type": "array",
+              "defaultValue": [
+                "AuditEvent"
+              ],
+              "allowedValues": [
+                "AuditEvent"
+              ],
+              "metadata": {
+                "description": "Optional. The name of logs that will be streamed."
+              }
+            },
+            "metricsToEnable": {
+              "type": "array",
+              "defaultValue": [
+                "AllMetrics"
+              ],
+              "allowedValues": [
+                "AllMetrics"
+              ],
+              "metadata": {
+                "description": "Optional. The name of metrics that will be streamed."
+              }
+            }
+          },
+          "functions": [],
+          "variables": {
+            "copy": [
+              {
+                "name": "diagnosticsLogs",
+                "count": "[length(parameters('logsToEnable'))]",
+                "input": {
+                  "category": "[parameters('logsToEnable')[copyIndex('diagnosticsLogs')]]",
+                  "enabled": true,
+                  "retentionPolicy": {
+                    "enabled": true,
+                    "days": "[parameters('diagnosticLogsRetentionInDays')]"
+                  }
+                }
+              },
+              {
+                "name": "diagnosticsMetrics",
+                "count": "[length(parameters('metricsToEnable'))]",
+                "input": {
+                  "category": "[parameters('metricsToEnable')[copyIndex('diagnosticsMetrics')]]",
+                  "timeGrain": null,
+                  "enabled": true,
+                  "retentionPolicy": {
+                    "enabled": true,
+                    "days": "[parameters('diagnosticLogsRetentionInDays')]"
+                  }
+                }
+              },
+              {
+                "name": "virtualNetworkRules",
+                "count": "[length(if(contains(parameters('networkAcls'), 'virtualNetworkRules'), parameters('networkAcls').virtualNetworkRules, createArray()))]",
+                "input": {
+                  "id": "[format('{0}/subnets/{1}', parameters('vNetId'), if(contains(parameters('networkAcls'), 'virtualNetworkRules'), parameters('networkAcls').virtualNetworkRules, createArray())[copyIndex('virtualNetworkRules')].subnet)]"
+                }
+              }
+            ],
+            "maxNameLength": 24,
+            "uniquenameUntrim": "[uniqueString(format('Key Vault{0}', parameters('baseTime')))]",
+            "uniquename": "[if(greater(length(variables('uniquenameUntrim')), variables('maxNameLength')), substring(variables('uniquenameUntrim'), 0, variables('maxNameLength')), variables('uniquenameUntrim'))]",
+            "name_var": "[if(empty(parameters('name')), variables('uniquename'), parameters('name'))]",
+            "networkAcls_var": {
+              "bypass": "[if(empty(parameters('networkAcls')), null(), parameters('networkAcls').bypass)]",
+              "defaultAction": "[if(empty(parameters('networkAcls')), null(), parameters('networkAcls').defaultAction)]",
+              "virtualNetworkRules": "[if(empty(parameters('networkAcls')), null(), variables('virtualNetworkRules'))]",
+              "ipRules": "[if(empty(parameters('networkAcls')), null(), if(equals(length(parameters('networkAcls').ipRules), 0), createArray(), parameters('networkAcls').ipRules))]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2019-09-01",
+              "name": "[variables('name_var')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "enabledForDeployment": "[parameters('enableVaultForDeployment')]",
+                "enabledForTemplateDeployment": "[parameters('enableVaultForTemplateDeployment')]",
+                "enabledForDiskEncryption": "[parameters('enableVaultForDiskEncryption')]",
+                "enableSoftDelete": "[parameters('enableSoftDelete')]",
+                "softDeleteRetentionInDays": "[parameters('softDeleteRetentionInDays')]",
+                "enableRbacAuthorization": "[parameters('enableRbacAuthorization')]",
+                "createMode": "[parameters('createMode')]",
+                "enablePurgeProtection": "[if(not(parameters('enablePurgeProtection')), null(), parameters('enablePurgeProtection'))]",
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": "[parameters('accessPolicies')]",
+                "sku": {
+                  "name": "[parameters('vaultSku')]",
+                  "family": "A"
+                },
+                "networkAcls": "[if(empty(parameters('networkAcls')), null(), variables('networkAcls_var'))]"
+              }
+            },
+            {
+              "condition": "[or(or(or(not(empty(parameters('diagnosticStorageAccountId'))), not(empty(parameters('workspaceId')))), not(empty(parameters('eventHubAuthorizationRuleId')))), not(empty(parameters('eventHubName'))))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2017-05-01-preview",
+              "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('name_var'))]",
+              "name": "[format('{0}-{1}', variables('name_var'), parameters('diagnosticSettingName'))]",
+              "properties": {
+                "storageAccountId": "[if(empty(parameters('diagnosticStorageAccountId')), null(), parameters('diagnosticStorageAccountId'))]",
+                "workspaceId": "[if(empty(parameters('workspaceId')), null(), parameters('workspaceId'))]",
+                "eventHubAuthorizationRuleId": "[if(empty(parameters('eventHubAuthorizationRuleId')), null(), parameters('eventHubAuthorizationRuleId'))]",
+                "eventHubName": "[if(empty(parameters('eventHubName')), null(), parameters('eventHubName'))]",
+                "metrics": "[if(and(and(and(empty(parameters('diagnosticStorageAccountId')), empty(parameters('workspaceId'))), empty(parameters('eventHubAuthorizationRuleId'))), empty(parameters('eventHubName'))), null(), variables('diagnosticsMetrics'))]",
+                "logs": "[if(and(and(and(empty(parameters('diagnosticStorageAccountId')), empty(parameters('workspaceId'))), empty(parameters('eventHubAuthorizationRuleId'))), empty(parameters('eventHubName'))), null(), variables('diagnosticsLogs'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('name_var'))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "keyVault_secrets",
+                "count": "[length(parameters('secrets'))]"
+              },
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}-Secret-{1}', uniqueString(deployment().name, parameters('location')), copyIndex())]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "name": {
+                    "value": "[parameters('secrets')[copyIndex()].name]"
+                  },
+                  "value": {
+                    "value": "[parameters('secrets')[copyIndex()].value]"
+                  },
+                  "vaultName": {
+                    "value": "[variables('name_var')]"
+                  },
+                  "attributesEnabled": {
+                    "value": "[if(contains(parameters('secrets')[copyIndex()], 'attributesEnabled'), parameters('secrets')[copyIndex()].attributesEnabled, true())]"
+                  },
+                  "attributesExp": {
+                    "value": "[if(contains(parameters('secrets')[copyIndex()], 'attributesExp'), parameters('secrets')[copyIndex()].attributesExp, -1)]"
+                  },
+                  "attributesNbf": {
+                    "value": "[if(contains(parameters('secrets')[copyIndex()], 'attributesNbf'), parameters('secrets')[copyIndex()].attributesNbf, -1)]"
+                  },
+                  "contentType": {
+                    "value": "[if(contains(parameters('secrets')[copyIndex()], 'contentType'), parameters('secrets')[copyIndex()].contentType, '')]"
+                  },
+                  "tags": {
+                    "value": "[if(contains(parameters('secrets')[copyIndex()], 'tags'), parameters('secrets')[copyIndex()].tags, createObject())]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.4.1008.15138",
+                      "templateHash": "5065410081110618580"
+                    }
+                  },
+                  "parameters": {
+                    "vaultName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Required. The name of the key vault"
+                      }
+                    },
+                    "name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Required. The name of the secret"
+                      }
+                    },
+                    "tags": {
+                      "type": "object",
+                      "defaultValue": {},
+                      "metadata": {
+                        "description": "Optional. Resource tags."
+                      }
+                    },
+                    "attributesEnabled": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Optional. Determines whether the object is enabled."
+                      }
+                    },
+                    "attributesExp": {
+                      "type": "int",
+                      "defaultValue": -1,
+                      "metadata": {
+                        "description": "Optional. Expiry date in seconds since 1970-01-01T00:00:00Z."
+                      }
+                    },
+                    "attributesNbf": {
+                      "type": "int",
+                      "defaultValue": -1,
+                      "metadata": {
+                        "description": "Optional. Not before date in seconds since 1970-01-01T00:00:00Z."
+                      }
+                    },
+                    "contentType": {
+                      "type": "secureString",
+                      "defaultValue": "",
+                      "metadata": {
+                        "description": "Optional. The content type of the secret."
+                      }
+                    },
+                    "value": {
+                      "type": "secureString",
+                      "metadata": {
+                        "description": "Required. The value of the secret. NOTE: \"value\" will never be returned from the service, as APIs using this model are is intended for internal use in ARM deployments. Users should use the data-plane REST service for interaction with vault secrets."
+                      }
+                    }
+                  },
+                  "functions": [],
+                  "resources": [
+                    {
+                      "type": "Microsoft.KeyVault/vaults/secrets",
+                      "apiVersion": "2019-09-01",
+                      "name": "[format('{0}/{1}', parameters('vaultName'), parameters('name'))]",
+                      "tags": "[parameters('tags')]",
+                      "properties": {
+                        "contentType": "[parameters('contentType')]",
+                        "attributes": {
+                          "enabled": "[parameters('attributesEnabled')]",
+                          "exp": "[if(not(equals(parameters('attributesExp'), -1)), parameters('attributesExp'), null())]",
+                          "nbf": "[if(not(equals(parameters('attributesNbf'), -1)), parameters('attributesNbf'), null())]"
+                        },
+                        "value": "[parameters('value')]"
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "secretName": {
+                      "type": "string",
+                      "value": "[format('{0}/{1}', parameters('vaultName'), parameters('name'))]"
+                    },
+                    "secretResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.KeyVault/vaults/secrets', split(format('{0}/{1}', parameters('vaultName'), parameters('name')), '/')[0], split(format('{0}/{1}', parameters('vaultName'), parameters('name')), '/')[1])]"
+                    },
+                    "secretResourceGroup": {
+                      "type": "string",
+                      "value": "[resourceGroup().name]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('name_var'))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "keyVault_keys",
+                "count": "[length(parameters('keys'))]"
+              },
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}-Key-{1}', uniqueString(deployment().name, parameters('location')), copyIndex())]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "name": {
+                    "value": "[parameters('keys')[copyIndex()].name]"
+                  },
+                  "vaultName": {
+                    "value": "[variables('name_var')]"
+                  },
+                  "attributesEnabled": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'attributesEnabled'), parameters('keys')[copyIndex()].attributesEnabled, true())]"
+                  },
+                  "attributesExp": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'attributesExp'), parameters('keys')[copyIndex()].attributesExp, -1)]"
+                  },
+                  "attributesNbf": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'attributesNbf'), parameters('keys')[copyIndex()].attributesNbf, -1)]"
+                  },
+                  "curveName": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'curveName'), parameters('keys')[copyIndex()].curveName, 'P-256')]"
+                  },
+                  "keyOps": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'keyOps'), parameters('keys')[copyIndex()].keyOps, createArray())]"
+                  },
+                  "keySize": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'keySize'), parameters('keys')[copyIndex()].keySize, -1)]"
+                  },
+                  "kty": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'kty'), parameters('keys')[copyIndex()].kty, 'EC')]"
+                  },
+                  "tags": {
+                    "value": "[if(contains(parameters('keys')[copyIndex()], 'tags'), parameters('keys')[copyIndex()].tags, createObject())]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.4.1008.15138",
+                      "templateHash": "16830707727655213521"
+                    }
+                  },
+                  "parameters": {
+                    "vaultName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Required. The name of the key vault"
+                      }
+                    },
+                    "name": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Required. The name of the key"
+                      }
+                    },
+                    "tags": {
+                      "type": "object",
+                      "defaultValue": {},
+                      "metadata": {
+                        "description": "Optional. Resource tags."
+                      }
+                    },
+                    "attributesEnabled": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Optional. Determines whether the object is enabled."
+                      }
+                    },
+                    "attributesExp": {
+                      "type": "int",
+                      "defaultValue": -1,
+                      "metadata": {
+                        "description": "Optional. Expiry date in seconds since 1970-01-01T00:00:00Z."
+                      }
+                    },
+                    "attributesNbf": {
+                      "type": "int",
+                      "defaultValue": -1,
+                      "metadata": {
+                        "description": "Optional. Not before date in seconds since 1970-01-01T00:00:00Z."
+                      }
+                    },
+                    "curveName": {
+                      "type": "string",
+                      "defaultValue": "P-256",
+                      "allowedValues": [
+                        "P-256",
+                        "P-256K",
+                        "P-384",
+                        "P-521"
+                      ],
+                      "metadata": {
+                        "description": "Optional. The elliptic curve name."
+                      }
+                    },
+                    "keyOps": {
+                      "type": "array",
+                      "defaultValue": [],
+                      "allowedValues": [
+                        "decrypt",
+                        "encrypt",
+                        "import",
+                        "sign",
+                        "unwrapKey",
+                        "verify",
+                        "wrapKey"
+                      ],
+                      "metadata": {
+                        "description": "Optional. Array of JsonWebKeyOperation"
+                      }
+                    },
+                    "keySize": {
+                      "type": "int",
+                      "defaultValue": -1,
+                      "metadata": {
+                        "description": "Optional. The key size in bits. For example: 2048, 3072, or 4096 for RSA."
+                      }
+                    },
+                    "kty": {
+                      "type": "string",
+                      "defaultValue": "EC",
+                      "allowedValues": [
+                        "EC",
+                        "EC-HSM",
+                        "RSA",
+                        "RSA-HSM"
+                      ],
+                      "metadata": {
+                        "description": "Optional. The type of the key."
+                      }
+                    }
+                  },
+                  "functions": [],
+                  "resources": [
+                    {
+                      "type": "Microsoft.KeyVault/vaults/keys",
+                      "apiVersion": "2019-09-01",
+                      "name": "[format('{0}/{1}', parameters('vaultName'), parameters('name'))]",
+                      "tags": "[parameters('tags')]",
+                      "properties": {
+                        "attributes": {
+                          "enabled": "[parameters('attributesEnabled')]",
+                          "exp": "[if(not(equals(parameters('attributesExp'), -1)), parameters('attributesExp'), null())]",
+                          "nbf": "[if(not(equals(parameters('attributesNbf'), -1)), parameters('attributesNbf'), null())]"
+                        },
+                        "curveName": "[parameters('curveName')]",
+                        "keyOps": "[parameters('keyOps')]",
+                        "keySize": "[if(not(equals(parameters('keySize'), -1)), parameters('keySize'), null())]",
+                        "kty": "[parameters('kty')]"
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "keyName": {
+                      "type": "string",
+                      "value": "[format('{0}/{1}', parameters('vaultName'), parameters('name'))]"
+                    },
+                    "keyResourceId": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.KeyVault/vaults/keys', split(format('{0}/{1}', parameters('vaultName'), parameters('name')), '/')[0], split(format('{0}/{1}', parameters('vaultName'), parameters('name')), '/')[1])]"
+                    },
+                    "keyResourceGroup": {
+                      "type": "string",
+                      "value": "[resourceGroup().name]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('name_var'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "keyVaultResourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', variables('name_var'))]"
+            },
+            "keyVaultResourceGroup": {
+              "type": "string",
+              "value": "[resourceGroup().name]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('name_var')]"
+            },
+            "keyVaultUrl": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('name_var')), '2016-10-01').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/deployments', 'eroshoko-rg')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "rgName": {
+      "type": "string",
+      "value": "eroshoko-rg"
+    }
+  }
+}

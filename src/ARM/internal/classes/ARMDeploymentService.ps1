@@ -45,6 +45,10 @@ class IDeploymentService {
     Throw "Method Not Implemented"
   }
 
+  [object] CreateResourceGroup([PSObject] $ScopeObject) {
+    Throw "Method Not Implemented"
+  }
+
   [object] GetResourceGroup([PSObject] $ScopeObject) {
     Throw "Method Not Implemented"
   }
@@ -59,45 +63,56 @@ class IDeploymentService {
 }
 
 class ARMDeploymentService : IDeploymentService {
+  # Deployment
   [string] $ArmResourceGroupDeploymentUri
   [string] $ArmSubscriptionDeploymentUri
+  [string] $ArmManagementGroupDeploymentUri
+
+  # Validation
   [string] $ArmResourceGroupValidationUri
   [string] $ArmSubscriptionValidationUri
+  [string] $ArmManagementGroupValidationUri
+
+  # WhatIf Validation
   [string] $ArmResourceGroupWhatIfValidationUri
   [string] $ArmSubscriptionWhatIfValidationUri
+  [string] $ArmManagementGroupWhatIfValidationUri
 
-  [bool] $IsSubscriptionDeployment = $false
+  ARMDeploymentService() {}
 
-  # Executes ARM operation for deployment
+  # Method: Executes ARM operation for deployment
   [PSCustomObject] ExecuteDeployment([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm deployment
-      $deployment = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "deploy"
-      )
+      $deployment = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "deploy")
+
+      # Did the deployment succeed?
+      if (($deployment.InvokeResult.error) -or ($deployment.InvokeResult.status -in @("Failed", "Canceled"))) {
+        Write-PipelineLogger -LogType "warning" -Message "Oops! Deployment failed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($deployment.InvokeResult.error.details.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($deployment.InvokeResult.error.message)" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Details: $($deployment.InvokeResult.error.details.message)"
+      } elseif ($deployment.error) {
+        Write-PipelineLogger -LogType "warning" -Message "Oops! Deployment failed with the following errors..."
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($deployment.error.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($deployment.error.message)"
+      } elseif ($deployment.InvokeResult.status -eq "Succeeded") {
+        Write-PipelineLogger -LogType "success" -Message "Hooray! Deployment completed. Provisioning State: [ $($deployment.InvokeResult.status) ]"
+      }
 
       return $deployment
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "Error: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "$($_.Exception.Message)"
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Executes ARM operation for validation
+  # Method: Executes ARM operation for validation
   [PSCustomObject] ExecuteValidation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm validation
-      $validation = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "validate"
-      )
+      $validation = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "validate")
 
       # Did the validation succeed?
       if ($validation.error.code -eq "InvalidTemplateDeployment") {
@@ -112,27 +127,25 @@ class ARMDeploymentService : IDeploymentService {
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Executes ARM operation for WhatIf validation
+  # Method: Executes ARM operation for whatIf validation
   [PSCustomObject] ExecuteValidationWhatIf([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
     try {
       # call arm whatIf validation
-      $whatIfValidation = $this.InvokeARMOperation(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location,
-        "validateWhatIf"
-      )
+      $whatIfValidation = $this.InvokeARMOperation($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location, "validateWhatIf")
 
-      # Did the validation succeed?
-      if (($whatIfValidation.StatusMessage) -or ($whatIfValidation -like "*error*")) {
-        # Throw an exception and pass the exception message from the ARM whatIf validation
-        Throw ("WhatIf Validation failed with the error below: {0}" -f $($whatIfValidation))
+      Write-PipelineLogger -LogType "info" -Message "Obtaining whatIf validation results..."
+
+      # Did the whatIf validation succeed?
+      if ($whatIfValidation.InvokeResult.error) {
+        Write-PipelineLogger -LogType "warning" -Message "WhatIf Validation failed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
+        Write-PipelineLogger -LogType "error" -Message "Code: [ $($whatIfValidation.InvokeResult.error.code) ]" -NoFailOnError
+        Write-PipelineLogger -LogType "error" -Message "Message: $($whatIfValidation.InvokeResult.error.message)"
       } else {
+        Write-PipelineLogger -LogType "success" -Message "WhatIf Validation completed. Provisioning State: [ $($whatIfValidation.InvokeResult.status) ]"
         $beforeChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "before" | ConvertTo-Json -Depth 99
         $afterChanges = $whatIfValidation.InvokeResult.properties.changes | Where-Object { $_.changeType -ne "ignore" } | Select-Object -ExpandProperty "after" | ConvertTo-Json -Depth 99
-        Write-PipelineLogger -LogType "info" -Message "WhatIf Validation passed"
         Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - before: $($beforeChanges)"
         Write-PipelineLogger -LogType "debug" -Message "WhatIf Validation results - after: $($afterChanges)"
       }
@@ -142,35 +155,34 @@ class ARMDeploymentService : IDeploymentService {
       throw $_.Exception.Message
     }
   }
+  #endregion
 
-  # Generate a new guid for deployment name
+  # Method: Generate a new guid for deployment name
   hidden [string] GenerateUniqueDeploymentName() {
     return [Guid]::NewGuid()
   }
+  #endregion
 
-  # Invoke ARM operation for deployment
+  # Method: Invoke ARM operation for deployment
   [object] InvokeARMOperation([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location, [string] $Operation) {
-
     $deploymentDetails = $null
 
-    # Check for invariant
+    # Check for deployment temple exists
     if ([string]::IsNullOrEmpty($DeploymentTemplate)) {
-      Write-PipelineLogger -LogType "error" -Message "DeploymentTemplate cannot be null or empty"
-      throw "Deployment template contents cannot be empty"
+      Write-PipelineLogger -LogType "error" -Message "DeploymentTemplate cannot be null or empty" -NoFailOnError
+      throw "Deployment template cannot be empty"
+
+      # Check for deployment parameters exists
+      if ([string]::IsNullOrEmpty($DeploymentParameters)) {
+        Write-PipelineLogger -LogType "error" -Message "DeploymentParameters cannot be null or empty" -NoFailOnError
+        throw "Deployment parameters cannot be empty"
+      }
     } else {
       # Construct the uri for the desired operation
-      $uri = $this.ConstructUri(
-        $ScopeObject,
-        $Operation
-      )
+      $uri = $this.ConstructUri($ScopeObject, $Operation)
 
       # Prepare the request body for the REST API
-      $requestBody = $this.PrepareRequestBodyForArm(
-        $ScopeObject,
-        $DeploymentTemplate,
-        $DeploymentParameters,
-        $Location
-      )
+      $requestBody = $this.PrepareRequestBodyForArm($ScopeObject, $DeploymentTemplate, $DeploymentParameters, $Location)
 
       try {
         Write-PipelineLogger -LogType "debug" -Message "Invoking ARM REST API with Uri: [ $uri ]"
@@ -182,21 +194,33 @@ class ARMDeploymentService : IDeploymentService {
           Write-PipelineLogger -LogType "error" -Message "Request Body is empty"
         }
 
+        #region check resource Id exists for resource group deployments only
+        if ($ScopeObject.Type -eq "resourcegroups") {
+          $resourceId = $this.GenerateResourceId($ScopeObject, $DeploymentTemplate, $DeploymentParameters)
+          if ($resourceId) {
+            $getResource = Get-AzResource -ResourceId $resourceId -ErrorAction SilentlyContinue
+            if ($getResource) {
+              Write-PipelineLogger -LogType "info" -Message "Resource Id: [ $resourceId ] exists. Mode [ UPDATE ]"
+            } else {
+              Write-PipelineLogger -LogType "info" -Message "Resource Id [ $resourceId ] does not exist. Mode [ CREATE ]"
+            }
+          } else {
+            Write-PipelineLogger -LogType "warning" -Message "Something went wrong while generating resource Id. Mode [ CREATE/UPDATE ]"
+          }
+        }
+        #endregion
+
         # Switch REST Verb based on operation type
         if ($Operation -eq "deploy") {
           $method = "PUT"
-        } elseif (($Operation -eq "validate") -or ($Operation -eq "validateWhatIf")) {
+        } elseif ($Operation -in @("validate", "validateWhatIf")) {
           $method = "POST"
         } else {
           throw "Invalid operation type"
         }
 
         # Call REST API to start the deployment
-        try {
-          $deployment = $this.InvokeARMRestMethod($method, $uri, $requestBody)
-        } catch {
-          throw $_.Exception.Message
-        }
+        $deployment = $this.InvokeARMRestMethod($method, $uri, $requestBody)
 
         # wait for arm deployment
         if ($null -ne $deployment.InvokeResult.Id -and $operation -eq "deploy") {
@@ -204,22 +228,22 @@ class ARMDeploymentService : IDeploymentService {
           Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($deployment.InvokeResult.properties.provisioningState) ]"
           Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($deployment.StatusCode) ]"
 
-          $deploymentDetails = $this.WaitForDeploymentToComplete(
-            $deployment,
-            $this.isSubscriptionDeployment,
-            $scopeObject
-          )
+          # get async operation details for deployment
+          $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
+        } elseif ($deployment.StatusMessage) {
+          $deploymentDetails = $deployment.StatusMessage | ConvertFrom-Json
+
         } elseif ($operation -eq "validateWhatIf") {
           Write-PipelineLogger -LogType "info" -Message "Running a WhatIf validation..."
-          # get async operation details here
-          $deploymentDetails = $this.GetAsyncOperationStatus($deployment)
+
+          # get async operation details for whatIf validation
+          $deploymentDetails = $this.WaitForDeploymentToComplete($deployment, $ScopeObject)
         }
 
         return $deploymentDetails
       } catch {
         # For deploy operation, the error is due malformed or incorrect inputs
         if ($operation -eq "deploy") {
-          Write-PipelineLogger -LogType "error" -Message "An Exception Occurred While Invoking the Deployment. Please see the error below: $($_.Exception.Message)"
           throw $_.Exception.Message
         }
         # For validate operation, the error is due to validation failure
@@ -229,10 +253,10 @@ class ARMDeploymentService : IDeploymentService {
       }
     }
   }
+  #endregion
 
-  # Construct the request body for ARM REST API
+  # Method: Construct the request body for ARM REST API
   hidden [string] PrepareRequestBodyForArm([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters, [string] $Location) {
-
     $templateJson = $null
     $parametersJson = $null
 
@@ -246,9 +270,7 @@ class ARMDeploymentService : IDeploymentService {
     }
 
     # Subscription level deployment
-    if ($ScopeObject.Type -eq "subscriptions") {
-
-      $this.isSubscriptionDeployment = $true
+    if ($ScopeObject.Type -in @("subscriptions", "managementgroups")) {
 
       # prepare the REST Call's body content format
       $requestBody = "{
@@ -259,7 +281,7 @@ class ARMDeploymentService : IDeploymentService {
             'parameters': $parametersJson
         }
       }"
-    } else {
+    } elseif ($ScopeObject.Type -eq "resourcegroups") {
       # prepare the REST Call's body content format
       $requestBody = "{
         'properties': {
@@ -268,26 +290,41 @@ class ARMDeploymentService : IDeploymentService {
             'parameters': $parametersJson
         }
       }"
+    } else {
+      $requestBody = $null
     }
 
     return $requestBody
   }
+  #endregion
 
-  # Construct the uri for the desired operation
+  # Method: Construct the uri for the desired operation
   hidden [string] ConstructUri([PSObject] $ScopeObject, [string] $Operation) {
-
     $uniqueDeploymentName = $this.GenerateUniqueDeploymentName()
 
     Write-PipelineLogger -LogType "debug" -Message "Operation scope: [ $($ScopeObject.Type) ] Operation: [ $operation ]"
 
-    # set the URL's from Discovery REST API call
+    # set the URL's from discovery REST API call
     $this.SetAzureManagementUrls()
 
-    # Subscription level deployment or resource group level deployment - lets construct the uri
-    if ($ScopeObject.Type -eq "subscription") {
-      Write-PipelineLogger -LogType "info" -Message "Detected a subscription level deployment"
+    # Management group, Subscription level or resource group level deployment - lets construct the uri
+    if ($ScopeObject.Type -eq "managementgroups") {
+      Write-PipelineLogger -LogType "info" -Message "Detected a managementgroup level deployment"
 
-      $this.isSubscriptionDeployment = $true
+      if ($operation -eq "deploy") {
+        $uri = $this.ArmManagementGroupDeploymentUri
+      } elseif ($operation -eq "validate") {
+        $uri = $this.ArmManagementGroupValidationUri
+      } elseif ($operation -eq "validateWhatIf") {
+        $uri = $this.ArmManagementGroupWhatIfValidationUri
+      } else {
+        throw "Invalid operation type"
+      }
+
+      # construct the uri using the format for armManagementGroupDeploymentUri or armManagementGroupValidationUri or armManagementGroupWhatIfValidationUri
+      $uri = $uri -f @($ScopeObject.Name, $uniqueDeploymentName)
+    } elseif ($ScopeObject.Type -eq "subscriptions") {
+      Write-PipelineLogger -LogType "info" -Message "Detected a subscription level deployment"
 
       if ($operation -eq "deploy") {
         $uri = $this.ArmSubscriptionDeploymentUri
@@ -299,8 +336,8 @@ class ARMDeploymentService : IDeploymentService {
         throw "Invalid operation type"
       }
 
-      # construct the uri using the format for armSubscriptionDeploymentUri
-      $uri = $uri -f $ScopeObject.Name, $uniqueDeploymentName
+      # construct the uri using the format for armSubscriptionDeploymentUri or armSubscriptionValidationUri or armSubscriptionWhatIfValidationUri
+      $uri = $uri -f @($ScopeObject.SubscriptionId, $uniqueDeploymentName)
     } else {
       Write-PipelineLogger -LogType "info" -Message "Detected a resourceGroup level deployment"
 
@@ -314,47 +351,60 @@ class ARMDeploymentService : IDeploymentService {
         throw "Invalid operation type"
       }
 
-      # construct the uri using the format for armResourceGroupDeploymentUri
-      $uri = $uri -f $ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName
-
-      if ($null -eq $uri) {
-        Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
-      }
+      # construct the uri using the format for armResourceGroupDeploymentUri or armResourceGroupValidationUri or armResourceGroupWhatIfValidationUri
+      $uri = $uri -f @($ScopeObject.SubscriptionId, $ScopeObject.Name, $uniqueDeploymentName)
     }
+
+    if ($null -eq $uri) {
+      Write-PipelineLogger -LogType "error" -Message "Failed to construct the uri"
+    }
+
     return $uri
   }
+  #endregion
 
-  # Wait for the deployment to complete
-  hidden [object] WaitForDeploymentToComplete([object] $Deployment, [bool] $IsSubscriptionDeployment, [PSObject] $ScopeObject) {
+  # Method: Check if resource already exists and generate resource id
+  hidden [string] GenerateResourceId([PSObject] $ScopeObject, [object] $DeploymentTemplate, [object] $DeploymentParameters) {
+    $resourceType = $null
+    $resourceId = $null
 
-    $currentDeployment = $null
-    $deploymentDetails = $null
+    $resourceType = $DeploymentTemplate.resources[0].type
+    $resourceNameInTemplate = ($DeploymentTemplate.resources | Where-Object { $_.type -eq $resourceType }).name
 
-    $currentDeployment = $this.GetAsyncOperationStatus($Deployment)
-
-    if ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $false) {
-
-      # If the deployment fails, get the deployment details via Get-AzResourceGroupDeploymentOperation or Get-AzDeploymentOperation
-      $deploymentDetails = Get-AzResourceGroupDeploymentOperation -ResourceGroupName $ScopeObject.Name -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from resource group deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
-    } elseif ((($currentDeployment.InvokeResult.status -eq "Failed") -or ($currentDeployment.InvokeResult.status -eq "Canceled") -or ($currentDeployment.InvokeResult.status -eq "Conflict")) -and $isSubscriptionDeployment -eq $true) {
-      $deploymentDetails = Get-AzDeploymentOperation -DeploymentName $Deployment.InvokeResult.name | Where-Object { $_.ProvisioningState -eq "Failed" }
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Provisioning State: $($deploymentDetails.ProvisioningState)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Status Code: $($deploymentDetails.StatusCode)" -NoFailOnError
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has failed. Details from subscription deployment: $($deploymentDetails.StatusMessage)" -NoFailOnError
-    } elseif ($currentDeployment.InvokeResult.status -eq "Succeeded") {
-      Write-PipelineLogger -LogType "success" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has completed. Provisioning State: [ $($currentDeployment.InvokeResult.status) ]"
-      $deploymentDetails = $currentDeployment
-    } else {
-      Write-PipelineLogger -LogType "error" -Message "Deployment: [ $($Deployment.InvokeResult.name) ] has an unknown error" -NoFailOnError
+    # get the actual resource type
+    if ($resourceType -eq "Microsoft.Resources/deployments") {
+      $resourceType = $DeploymentTemplate.resources[0].properties.template.resources[0].type
     }
 
-    return $deploymentDetails
-  }
+    $resourceNameParameters = @()
+    while ($true) {
+      $startOfParameters = $resourceNameInTemplate.IndexOf("parameters('")
+      $startOfParameterName = $startOfParameters + 12
 
-  # Clean up deployment history
+      if ($startOfParameters -eq -1) {
+        break
+      }
+
+      $endParameterName = $resourceNameInTemplate.indexOf("'", $startOfParameterName)
+      $resourceNameParameters += $resourceNameInTemplate.substring($startOfParameterName , $endParameterName - $startOfParameterName )
+      $resourceNameInTemplate = $resourceNameInTemplate.Substring($startOfParameterName)
+    }
+
+    $resourceTypeSplitSplit = $resourceType.split("/")
+    $resourceId = "/subscriptions/$($ScopeObject.subscriptionId)/resourceGroups/$($ScopeObject.Name)/providers/$($resourceTypeSplitSplit[0])"
+    $resourceTypeSplitSplit = $resourceTypeSplitSplit[1..($resourceTypeSplitSplit.Length - 1)] # removing Microsoft.Sql from Microsoft.Sql/servers/databases so array will have same element as [ $resourceNameParameters ]
+
+    # iterating to fill out the values servers/dev-sql-server-ed8/databases/dev-sql-database-02 and adding it to the resourceId
+    for ($i = 0; $i -lt $ResourceTypeSplitSplit.Count; $i++) {
+      $parameterValue = ($DeploymentParameters.parameters.($resourceNameParameters[$i])).value
+      $resourceId += ("/" + $resourceTypeSplitSplit[$i] + "/" + $parameterValue)
+    }
+
+    return $resourceId
+  }
+  #endregion
+
+  # Method: Clean up deployment history
   hidden [object] RemoveDeploymentHistory([PSObject] $ScopeObject, [object] $Deployment) {
     $removeHistory = $null
 
@@ -367,15 +417,20 @@ class ARMDeploymentService : IDeploymentService {
         Write-PipelineLogger -LogType "info" -Message "Cleaning subscription level deployment history"
         $removeHistory = Remove-AzDeployment -Name $Deployment.DeploymentName -SubscriptionId $ScopeObject.SubscriptionId
       }
+      "managementgroups" {
+        Write-PipelineLogger -LogType "info" -Message "Cleaning managementgroup level deployment history"
+        $removeHistory = Remove-AzManagementGroupDeployment -Name $Deployment.DeploymentName -ManagementGroupId $ScopeObject.Name
+      }
       Default {
-        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions"
+        Write-PipelineLogger -LogType "error" -Message "Invalid scope type. Supported scopes are: resourcegroups, subscriptions and managementgroups"
       }
     }
 
     return $removeHistory
   }
+  #endregion
 
-  # Set the subscription context
+  # Method: Set the subscription context
   [void] SetSubscriptionContext([PSObject] $ScopeObject) {
     try {
       Write-PipelineLogger -LogType "info" -Message "Setting subscription context: Subscription - [ $($ScopeObject.SubscriptionId) ]"
@@ -384,12 +439,13 @@ class ARMDeploymentService : IDeploymentService {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
     }
   }
+  #endregion
 
-  # Get a token to work against the ARM API
+  # Method: Get a token to work against the ARM API
   hidden [PSCustomObject] GetARMToken() {
     $currentAzureContext = Get-AzContext
     if ($null -eq $currentAzureContext.Subscription.TenantId) {
-      Write-PipelineLogger -LogType "error" -Message "[$($MyInvocation.MyCommand)] - No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
+      Write-PipelineLogger -LogType "error" -Message "No Azure context found. Use 'Connect-AzAccount' to create a context or 'Set-AzContext' to select subscription"
     }
 
     $token = Get-AzAccessToken
@@ -399,18 +455,36 @@ class ARMDeploymentService : IDeploymentService {
       ExpiresOn   = $token.ExpiresOn
     }
   }
+  #endregion
 
-  # Get the status of an Async operation
-  hidden [PSCustomObject] GetAsyncOperationStatus([PSObject] $HttpResponse) {
+  # Method: Get the header values
+  hidden [PSCustomObject] GetResponseHeaderValue([PSObject] $HttpResponse, [string] $HeaderName) {
+    if ($HttpResponse) {
+      $headerValues = New-Object System.Collections.Generic.List[string]
+      $HttpResponse.ResponseHeader.TryGetValue($HeaderName, [ref] $headerValues) | Out-Null
+
+      return $headerValues.Count -gt 0 ? [string] $headerValues : $null
+    } else {
+      $headerValue = $HttpResponse.ResponseHeader."$($HeaderName)"
+      return $headerValue ? [string] $headerValue : $null
+    }
+  }
+  #endregion
+
+  # Method: Get the status of an Async operation
+  hidden [PSCustomObject] WaitForDeploymentToComplete([PSObject] $HttpResponse, [PSObject] $ScopeObject) {
     $status = $null
+    $asyncResponse = $null
+    $asyncSuccess = $false
+
     $statusCode = $HttpResponse.StatusCode
     if ($statusCode -notin @(201, 202)) {
       Write-PipelineLogger -LogType "error" -Message "HTTP response status code must be either '201' or '202' to indicate an asynchronous operation."
     }
 
     #region Extracts the HTTP response headers of the asynchronous operation.
-    $azureAsyncOperation = $HttpResponse.ResponseHeader.'Azure-AsyncOperation' | Out-String
-    $location = $HttpResponse.ResponseHeader.'Location' | Out-String
+    $azureAsyncOperation = $this.GetResponseHeaderValue($HttpResponse, "Azure-AsyncOperation")
+    $location = $this.GetResponseHeaderValue($HttpResponse, "Location")
 
     if (-not ($azureAsyncOperation -or $location)) {
       Write-PipelineLogger -LogType "error" -Message "HTTP response does not contain required headers - 'Azure-AsyncOperation' or 'Location'."
@@ -422,52 +496,66 @@ class ARMDeploymentService : IDeploymentService {
       $statusUrl = $location
     }
 
-    try {
-      #region Monitors the status of the asynchronous operation.
-      $retries = 0
-      $maxRetries = 100
-      do {
-        Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries+1) ]"
-        $httpResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
-        if ($HttpResponse) {
-          $status = ($httpResponse | Select-Object -ExpandProperty InvokeResult).status
-        }
+    #region Monitors the status of the asynchronous operation.
+    $wait = 10
+    $retries = 0
+    $maxRetries = 100
+    do {
+      $retries++
 
-        Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($HttpResponse.InvokeResult.status) ]"
-        Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($HttpResponse.StatusCode) ]"
-
-        if ($azureAsyncOperation) {
-          if ($status -eq "Succeeded") {
-            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
-            break
-          } elseif ($status -in "Failed", "Canceled") {
-            Write-PipelineLogger -LogType "error" -Message "The asynchronous operation has failed."
-            break
-          }
-        } elseif ($location) {
-          if ($HttpResponse.StatusCode -eq 200) {
-            Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
-            break
-          } elseif ($HttpResponse.StatusCode -ne 202) {
-            Write-PipelineLogger -LogType "warning" -Message "The asynchronous operation has a status code of '202' and is still in progress."
-          }
-        }
-
-        Start-Sleep -Second 10
-        $retries++
-      } until ($retries -gt $maxRetries)
-
-      if ($retries -gt $maxRetries) {
-        Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
+      Write-PipelineLogger -LogType "info" -Message "Waiting for asynchronous operation to complete. Retry: [ $($retries) ]"
+      $asyncResponse = $this.InvokeARMRestMethod("GET", $statusUrl, "") # Body is empty here
+      if ($asyncResponse) {
+        $status = ($asyncResponse | Select-Object -ExpandProperty InvokeResult).status
       }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "AsyncOperation failed. Details: $($_.Exception.Message)."
+
+      Write-PipelineLogger -LogType "debug" -Message "Provisioning State: [ $($asyncResponse.InvokeResult.status) ]"
+      Write-PipelineLogger -LogType "debug" -Message "Status Code: [ $($asyncResponse.StatusCode) ]"
+
+      # Increment the phase number after 10 loops
+      if ($retries % 10 -eq 0) {
+        # let's increase the wait time
+        $wait = ($wait * 2)
+
+        Write-PipelineLogger -LogType "debug" -Message "New wait time: $wait seconds"
+      }
+
+      if ($azureAsyncOperation) {
+        if ($status -eq "Succeeded") {
+          $asyncSuccess = $true
+          break
+        } elseif ($status -in "Failed", "Canceled") {
+          $asyncSuccess = $false
+          break
+        }
+      } elseif ($location) {
+        if ($asyncResponse.StatusCode -eq 200) {
+          $asyncSuccess = $true
+          break
+        } elseif ($asyncResponse.StatusCode -ne 202) {
+          $asyncSuccess = $false
+          Write-PipelineLogger -LogType "warning" -Message "The asynchronous operation has a status code of '202' and is still in progress."
+        }
+      }
+
+      Start-Sleep -Second $wait
+    } until ($retries -gt $maxRetries)
+
+    if ($retries -gt $maxRetries) {
+      Write-PipelineLogger -LogType "warning" -Message "Status of asynchronous operation '$($statusUrl)' could not be retrieved even after $($maxRetries) retries."
     }
 
-    return $HttpResponse
-  }
+    if ($asyncSuccess -eq $true) {
+      Write-PipelineLogger -LogType "success" -Message "The asynchronous operation has completed successfully."
+    } else {
+      Write-PipelineLogger -LogType "error" -Message "The asynchronous operation has failed." -NoFailOnError
+    }
 
-  # Invokes a Rest call to azure and adds the token to header parameter
+    return $asyncResponse
+  }
+  #endregion
+
+  # Method: Invokes a Rest call to azure and adds the token to header parameter
   hidden [PSCustomObject] InvokeARMRestMethod([string] $Method, [string] $Uri, [PSObject] $Body) {
     $respHeader = $null
     $invokeResult = $null
@@ -497,7 +585,7 @@ class ARMDeploymentService : IDeploymentService {
       $invokeResult = Invoke-RestMethod @irmArgs
     } catch {
       $errorMessage = $_.ErrorDetails.Message
-      Write-Error -ErrorRecord $_ -ErrorAction Continue
+      Write-Error $errorMessage -ErrorAction Continue
     }
 
     $operationId = $null
@@ -507,7 +595,6 @@ class ARMDeploymentService : IDeploymentService {
 
     $correlationId = $null
     if ($null -ne $respHeader.'x-ms-correlation-request-id') {
-      Write-Information -MessageData "[$($MyInvocation.MyCommand)] - Response contains 'CorrelationId' '$($respHeader.'x-ms-correlation-request-id'[0])'"
       $correlationId = $respHeader.'x-ms-correlation-request-id'[0]
     }
 
@@ -520,43 +607,73 @@ class ARMDeploymentService : IDeploymentService {
       StatusMessage  = $errorMessage
     }
   }
+  #endregion
 
-  # Get an existing resource group
+  # Method: Validate latest Az module is installed and imported
+  [void] AzModuleIsInstalled() {
+    try {
+      $module = Get-InstalledModule -Name "Az" -ErrorAction SilentlyContinue
+      if (-not $module) {
+        Write-PipelineLogger -LogType "info" -Message "Az module is not installed. Installing module"
+        Install-Module -Name "Az" -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
+      } else {
+        if ($module.Version -ne '7.0.0') {
+          Write-PipelineLogger -LogType "info" -Message "Az module is not latest. Installing latest version."
+          Install-Module -Name "Az" -Force -AllowClobber -Scope CurrentUser -ErrorAction Stop
+        } else {
+          Write-PipelineLogger -LogType "info" -Message "Az module already installed. Importing module."
+          Import-Module Az -Force -ErrorAction Stop
+        }
+      }
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "$($_.Exception.Message)"
+    }
+  }
+  #endregion
+
+  # Method: Create a resource group
+  [object] CreateResourceGroup([PSObject] $ScopeObject, [string] $Location) {
+    try {
+      return New-AzResourceGroup -Name $ScopeObject.Name -Location $Location -ErrorAction Stop
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroup. Details: $($_.Exception.Message)"
+      throw $_
+    }
+  }
+  #endregion
+
+  # Method: Get an existing resource group
   [object] GetResourceGroup([PSObject] $ScopeObject) {
     try {
-      $resourceId = $ScopeObject.Scope
-      return Get-AzResourceGroup -Id $resourceId -ErrorAction SilentlyContinue
+      return Get-AzResourceGroup -Id $ScopeObject.Scope -ErrorAction SilentlyContinue
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running GetResourceGroup. Details: $($_.Exception.Message)"
       throw $_
     }
   }
+  #endregion
 
-  # Remove an existing resource group
+  # Method: Remove an existing resource group
   [void] RemoveResourceGroup([PSObject] $ScopeObject) {
-
     try {
-      $id = $ScopeObject.Scope
       $resourceGroup = $this.GetResourceGroup($ScopeObject)
       if ($null -ne $resourceGroup) {
-        Remove-AzResourceGroup -Id $id -Force -ErrorAction 'SilentlyContinue' -AsJob
+        $resourceGroup | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroup. Details: $($_.Exception.Message)"
       throw $_
     }
   }
+  #endregion
 
-  # If there is any resource lock on the existing resource group, we need it cleaned up
+  # Method: Remove resource lock on the existing resource group
   [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
-
     try {
-      $resourceId = $ScopeObject.Scope
-      $allLocks = Get-AzResourceLock -Scope $resourceId -ErrorAction SilentlyContinue | Where-Object "ProvisioningState" -ne "Deleting"
-
+      $allLocks = Get-AzResourceLock -Scope $ScopeObject.Scope -ErrorAction SilentlyContinue | Where-Object { $_ProvisioningState -ne "Deleting" }
       if ($null -ne $allLocks) {
         $allLocks | ForEach-Object {
-          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction 'SilentlyContinue'
+          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction SilentlyContinue
         }
       }
     } catch {
@@ -564,19 +681,24 @@ class ARMDeploymentService : IDeploymentService {
       throw $_
     }
   }
+  #endregion
 
-  # Set azure management urls
+  # Method: Set azure management urls
   hidden [void] SetAzureManagementUrls() {
     # deployment urls
     $this.ArmResourceGroupDeploymentUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}?api-version=2021-04-01"
     $this.ArmSubscriptionDeploymentUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}?api-version=2021-04-01"
+    $this.ArmManagementGroupDeploymentUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}?api-version=2021-04-01"
 
     # validation urls
     $this.ArmResourceGroupValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/validate?api-version=2021-04-01"
     $this.ArmSubscriptionValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
+    $this.ArmManagementGroupValidationUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}/validate?api-version=2021-04-01"
 
     # whatIf validation urls
     $this.ArmResourceGroupWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/resourcegroups/{1}/providers/Microsoft.Resources/deployments/{2}/whatIf?api-version=2021-04-01"
     $this.ArmSubscriptionWhatIfValidationUri = "https://management.azure.com/subscriptions/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
+    $this.ArmManagementGroupWhatIfValidationUri = "https://management.azure.com/providers/Microsoft.Management/managementGroups/{0}/providers/Microsoft.Resources/deployments/{1}/whatIf?api-version=2021-04-01"
   }
+  #endregion
 }

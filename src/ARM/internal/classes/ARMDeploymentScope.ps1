@@ -6,6 +6,12 @@ class ARMDeploymentScope {
   [string] $Resource
   [string] $SubscriptionDisplayName
   [string] $SubscriptionId
+  [string] $ManagementGroup
+  [string] $ManagementGroupDisplayName
+
+  hidden [regex]$regex_tenant = '/$'
+  hidden [regex]$regex_managementgroup = '(?i)^/providers/Microsoft.Management/managementgroups/[^/]+$'
+  hidden [regex]$regex_managementgroupExtract = '(?i)^/providers/Microsoft.Management/managementgroups/'
 
   hidden [regex]$regex_resourceGroup = '(?i)^/subscriptions/.*/resourcegroups/[^/]*$'
   hidden [regex]$regex_resourceGroupExtract = '(?i)^/subscriptions/.*/resourcegroups/'
@@ -15,13 +21,14 @@ class ARMDeploymentScope {
 
   ARMDeploymentScope() { }
 
-  # Method: Check if the scope is a subscription or a resource group
+  # Method: Check if the scope is a management group, subscription or a resource group
   ARMDeploymentScope([string] $Scope) {
-    $this.InitializeMemberVariables($Scope)
+    $this.InitializeScopeVariables($Scope)
   }
+  #endregion
 
-  # Method: Initialize member variables
-  hidden [object] InitializeMemberVariables([string] $Scope) {
+  # Method: Initialize scope variables
+  hidden [object] InitializeScopeVariables([string] $Scope) {
     $this.Scope = $Scope
 
     if ($this.IsResourceGroup()) {
@@ -38,16 +45,46 @@ class ARMDeploymentScope {
       $this.Name = $this.IsSubscription()
       $this.SubscriptionDisplayName = $this.GetSubscription().Name
       $this.SubscriptionId = $this.GetSubscription().Id
+    } elseif ($this.IsManagementGroup()) {
+      $this.Type = "managementGroups"
+      $this.ResourceProvider = "Microsoft.Management"
+      $this.Resource = "managementGroups"
+      $this.Name = $this.IsManagementGroup()
+      $this.ManagementGroup = $this.GetManagementGroup().Id
+      $this.ManagementGroupDisplayName = $this.GetManagementGroupName()
+    } elseif ($this.IsTenant()) {
+      $this.Type = "root"
+      $this.Name = "/"
     } else {
-      throw New-Object System.ArgumentException("Invalid scope: $($this.Scope). Valid scopes are: resourcegroups and subscriptions")
+      throw New-Object System.ArgumentException("Invalid scope: $($this.Scope). Valid scopes are: resourcegroups, subscriptions, managementgroups and tenant levels")
     }
 
     return $this.ScopeObject
   }
+  #endregion
 
   [string] ToString() {
     return $this.Scope
   }
+  #endregion
+
+  # Method: Check management group tenant root scope
+  [string] IsTenant() {
+    if (($this.Scope -match $this.regex_tenant)) {
+      return ($this.Scope.Split('/')[1])
+    }
+    return $null
+  }
+  #endregion
+
+  # Method: Check if management group scope
+  [string] IsManagementGroup() {
+    if (($this.Scope -match $this.regex_managementgroup)) {
+      return ($this.Scope.Split('/')[4])
+    }
+    return $null
+  }
+  #endregion
 
   # Method: Check if subscription scope
   [string] IsSubscription() {
@@ -56,6 +93,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Check if resource group scope
   [string] IsResourceGroup() {
@@ -64,6 +102,7 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
   # Method: Get Subscription DisplayName
   [object] GetSubscription() {
@@ -78,8 +117,20 @@ class ARMDeploymentScope {
     }
     return $null
   }
+  #endregion
 
-  # Set the subscription context
+  # Method: Check if user or SPN is logged in
+  [object] IsLoggedIn() {
+    $context = Get-AzContext
+    if ($null -eq $context) {
+      return $null
+    } else {
+      return $context
+    }
+  }
+  #endregion
+
+  # Method: Set the subscription context
   [void] SetSubscriptionContext() {
     try {
       if ($this.Scope -match $this.regex_subscriptionExtract) {
@@ -91,8 +142,61 @@ class ARMDeploymentScope {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running SetSubscriptionContext. Details $($_.Exception.Message)"
     }
   }
+  #endregion
 
-  # Get an existing resource group
+  # Method: Get Management Group info
+  [object] GetManagementGroup() {
+    if ($this.GetManagementGroupName()) {
+      foreach ($mgmt in (Get-AzManagementGroup -ErrorAction SilentlyContinue)) {
+        if ($mgmt.DisplayName -eq $this.GetManagementGroupName()) {
+          return $mgmt
+        }
+      }
+    }
+
+    if ($this.Subscription) {
+      foreach ($mgmt in Get-AzManagementGroup -Expand -Recurse -ErrorAction SilentlyContinue) {
+        foreach ($child in $mgmt.Children) {
+          if ($child.DisplayName -eq $this.subscriptionDisplayName) {
+            return $mgmt
+          }
+        }
+      }
+    }
+
+    return $null
+  }
+  #endregion
+
+  # Method: Get Management Group name
+  [string] GetManagementGroupName() {
+    if ($this.Scope -match $this.regex_managementgroupExtract) {
+      $mgId = $this.Scope -split $this.regex_managementgroupExtract -split '/' | Where-Object { $_ } | Select-Object -First 1
+
+      if ($mgId) {
+        $mgDisplayName = (Get-AzManagementGroup -ErrorAction SilentlyContinue | Where-Object Name -eq $mgId).DisplayName
+        if ($mgDisplayName) {
+          return $mgDisplayName
+        } else {
+          return $mgId
+        }
+      }
+    }
+
+    if ($this.Subscription) {
+      foreach ($managementGroup in Get-AzManagementGroup -ErrorAction SilentlyContinue) {
+        foreach ($child in $managementGroup.Children) {
+          if ($child.DisplayName -eq $this.subscriptionDisplayName) {
+            return $managementGroup.DisplayName
+          }
+        }
+      }
+    }
+    return $null
+  }
+  #endregion
+
+  # Method: Get an existing resource group
   [object] GetResourceGroup() {
     try {
       if ($this.Scope -match $this.regex_resourceGroupExtract) {
@@ -111,35 +215,5 @@ class ARMDeploymentScope {
       throw $_
     }
   }
-
-  # Remove an existing resource group
-  [void] RemoveResourceGroup() {
-    try {
-      if ($this.Scope -match $this.regex_resourceGroupExtract) {
-        $resourceGroup = $this.GetResourceGroup()
-
-        if ($null -ne $resourceGroup) {
-          Remove-AzResourceGroup -Id $resourceGroup.ResourceId -Force -ErrorAction 'SilentlyContinue' -ErrorAction SilentlyContinue
-        }
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroup. Details: $($_.Exception.Message)"
-      throw $_
-    }
-  }
-
-  # If there is any resource lock on the existing scope, we need it cleaned up
-  [void] RemoveResourceLock() {
-    try {
-      $allLocks = Get-AzResourceLock -Scope $this.Scope -ErrorAction SilentlyContinue | Where-Object "ProvisioningState" -ne "Deleting"
-      if ($null -ne $allLocks) {
-        $allLocks | ForEach-Object {
-          Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction 'SilentlyContinue'
-        }
-      }
-    } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceLock. Details: $($_.Exception.Message)"
-      throw $_
-    }
-  }
 }
+#endregion
