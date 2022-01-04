@@ -268,11 +268,11 @@ function New-ARMDeployment {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.DeploymentScope.Failed. Details: $($_.Exception.Message)"
     }
 
-    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentScopeObject.Success"
-
     if (-not $scopeObject) {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.DeploymentScope.NotFound"
       return
+    } else {
+      Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentScope.Success"
     }
     #endregion Resolve Scope
 
