@@ -15,7 +15,7 @@ function New-ARMDeployment {
     .PARAMETER TemplateParameterObject
       Object that contains the parameters of the ARM template.
 
-    .PARAMETER Scope
+    .PARAMETER DeploymentScope
       The deployment scope - resource group or subscription.
 
     .PARAMETER ResourceGroupName
@@ -74,7 +74,7 @@ function New-ARMDeployment {
 
     .EXAMPLE
       $paramArgs = @{
-        Scope                     = 'subscription'
+        DeploymentScope           = 'subscription'
         SubscriptionId            = $(Get-AzContext).Subscription.Id
         DeploymentTemplate        = '.\aks\bicep\main.sub.json'
         TemplateParameterFilePath = 'parameters.json'
@@ -86,7 +86,7 @@ function New-ARMDeployment {
 
     .EXAMPLE
       $paramArgs = @{
-        Scope                     = 'managementgroup'
+        DeploymentScope           = 'managementgroup'
         SubscriptionId            = $(Get-AzContext).Subscription.Id
         ManagementGroupId         = 'demo-mg'
         DeploymentTemplate        = '.\aks\bicep\main.mg.json'
@@ -98,7 +98,7 @@ function New-ARMDeployment {
       Runs the ARM template validation on a management group deployment.
 
     .EXAMPLE
-      New-ARMDeployment -Scope "resourcegroup" -SubscriptionId 'xxxx' -ResourceGroupName 'some-rg' -TearDownEnvironment
+      New-ARMDeployment -DeploymentScope "resourcegroup" -SubscriptionId 'xxxx' -ResourceGroupName 'some-rg' -TearDownEnvironment
 
       Cleans up the resources by cleaning the RG
 
@@ -117,20 +117,21 @@ function New-ARMDeployment {
   [Alias("Invoke-ARMDeployment")]
   param (
     [Parameter(Mandatory = $true)]
-    [Alias("TemplatePath", "temppath")]
+    [Alias("TemplatePath")]
     [string] $TemplateFilePath,
 
     [Parameter(Mandatory = $false)]
-    [Alias("ParameterPath", "parampath")]
+    [Alias("ParameterPath")]
     [string] $TemplateParameterFilePath,
 
     [Parameter(Mandatory = $false)]
-    [Alias("ParameterObject", "paramobj")]
+    [Alias("ParameterObject")]
     [string] $TemplateParameterObject,
 
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription", "managementgroup")]
-    [string] $Scope,
+    [Alias("Scope")]
+    [string] $DeploymentScope,
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
@@ -218,46 +219,46 @@ function New-ARMDeployment {
     }
     #endregion Resolve template parameters
 
-    #region Resolve Scope
+    #region Resolve Deployment Scope
     try {
       Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ScopeObject.Create"
-      switch ($Scope) {
+      switch ($DeploymentScope) {
         'resourcegroup' {
           if ($templateObj.'$schema' -match [regex]::Escape('deploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+            $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope resourcegroup."
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope resourcegroup."
             return
           }
         }
         'subscription' {
           if ($templateObj.'$schema' -match [regex]::Escape('subscriptionDeploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+            $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
           } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope subscription."
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope subscription."
             return
           }
         }
         'managementgroup' {
           if ($templateObj.'$schema' -match [regex]::Escape('managementGroupDeploymentTemplate.json')) {
-            $scopeObject = New-ARMScope -Scope $scope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
+            $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
           } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match scope managementgroup."
+            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope managementgroup."
             return
           }
         }
         default {
-          throw "Invalid scope. Valid scopes are resourcegroup, subscription or managementgroup"
+          throw "Invalid deployment scope. Valid scopes are resourcegroup, subscription or managementgroup"
         }
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.Failed. Details: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.DeploymentScope.Failed. Details: $($_.Exception.Message)"
     }
 
-    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ScopeObject.Success"
+    Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentScopeObject.Success"
 
     if (-not $scopeObject) {
-      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Scope.NotFound"
+      Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.DeploymentScope.NotFound"
       return
     }
     #endregion Resolve Scope
@@ -278,7 +279,7 @@ function New-ARMDeployment {
     try {
       if (-not ($TeardownEnvironment.IsPresent)) {
         #region create rg if scope is resourcegroups
-        if ($Scope -eq "resourcegroup") {
+        if ($DeploymentScope -eq "resourcegroup") {
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
 
           if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
@@ -298,7 +299,7 @@ function New-ARMDeployment {
           #region validate deployment template
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Initializing"
 
-          if ($PSCmdlet.ShouldProcess("Validation - Scope [$scope]", 'Validate')) {
+          if ($PSCmdlet.ShouldProcess("Validation - Scope [$DeploymentScope]", 'Validate')) {
             $deploymentService.ExecuteValidation(
               $scopeObject,
               $templateObj,
@@ -311,7 +312,7 @@ function New-ARMDeployment {
           #region validate whatif
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Initializing"
 
-          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$scope]", 'ValidateWhatIf')) {
+          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$DeploymentScope]", 'ValidateWhatIf')) {
             $deploymentService.ExecuteValidationWhatIf(
               $scopeObject,
               $templateObj,
@@ -325,7 +326,7 @@ function New-ARMDeployment {
           #region create deployment
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
 
-          if ($PSCmdlet.ShouldProcess("ARM Deployment [$scope]", 'Create')) {
+          if ($PSCmdlet.ShouldProcess("ARM Deployment [$DeploymentScope]", 'Create')) {
             $deployment = $deploymentService.ExecuteDeployment(
               $scopeObject,
               $templateObj,
@@ -340,7 +341,7 @@ function New-ARMDeployment {
           #region delete deployment history
           if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
             Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Initializing"
-            if ($PSCmdlet.ShouldProcess("Remove Deployment History [$scope]", 'Remove')) {
+            if ($PSCmdlet.ShouldProcess("Remove Deployment History [$DeploymentScope]", 'Remove')) {
               $cleanup = $deploymentService.RemoveDeploymentHistory(
                 $scopeObject,
                 $deployment
@@ -358,7 +359,7 @@ function New-ARMDeployment {
       } elseif ($TeardownEnvironment.IsPresent) {
         #region teardown environment
         Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Initializing"
-        if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$scope]", 'Destroy')) {
+        if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$DeploymentScope]", 'Destroy')) {
           try {
             $rgFound = $deploymentService.GetResourceGroup(
               $scopeObject
@@ -398,7 +399,7 @@ function New-ARMDeployment {
       throw "$($_.Exception.Message)"
     }
     #endregion deployment stage
-    #endregion Process Scope
+    #endregion Process DeploymentScope
 
     #region completed
     Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Completed"

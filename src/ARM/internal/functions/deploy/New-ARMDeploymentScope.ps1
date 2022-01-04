@@ -1,4 +1,4 @@
-function New-ARMScope {
+function New-ARMDeploymentScope {
   <#
     .SYNOPSIS
       Returns an ARMScope for a path or for a scope
@@ -6,8 +6,8 @@ function New-ARMScope {
     .DESCRIPTION
       Returns an ARMScope for a path or for a scope
 
-    .PARAMETER Scope
-      The scope for which to return a scope object.
+    .PARAMETER DeploymentScope
+      The deployment scope for which to return a scope object.
 
     .PARAMETER ResourceGroupName
       The name of the resource group for which to return a scope object.
@@ -19,7 +19,7 @@ function New-ARMScope {
       The subscription id for which to return a scope object.
 
     .EXAMPLE
-      New-ARMScope -Scope "resourcegroup" -ResourceGroupName "MyResourceGroup" -SubscriptionId "MySubscriptionId"
+      New-ARMDeploymentScope -DeploymentScope "resourcegroup" -ResourceGroupName "MyResourceGroup" -SubscriptionId "MySubscriptionId"
       Return ARMDeploymentScope
 
     .INPUTS
@@ -30,22 +30,23 @@ function New-ARMScope {
   #>
   [OutputType([ARMDeploymentScope])]
   [CmdletBinding(SupportsShouldProcess = $true)]
-  [Alias("Set-ARMScope")]
+  [Alias("Set-ARMDeploymentScope")]
   param (
-    [Parameter(ParameterSetName = "scope")]
+    [Parameter(Mandatory = $true, ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription", "managementgroup")]
-    [string] $Scope,
+    [Alias("Scope")]
+    [string] $DeploymentScope,
 
     [Parameter()]
-    [Alias('RGName')]
+    [Alias("RGName", "rg")]
     [string] $ResourceGroupName,
 
     [Parameter()]
-    [Alias('MgId')]
+    [Alias("MgId", "mg")]
     [string] $ManagementGroupId,
 
     [Parameter(Mandatory = $false)]
-    [Alias('SubId')]
+    [Alias("SubId", "sub" )]
     [string] $SubscriptionId = (Get-AzContext).Subscription.Id
   )
 
@@ -53,14 +54,14 @@ function New-ARMScope {
     Write-Debug ('{0} entered' -f $MyInvocation.MyCommand)
 
     # lets construct the scope
-    if (($ResourceGroupName -and $SubscriptionId) -and ($scope -eq "resourcegroup")) {
+    if (($ResourceGroupName -and $SubscriptionId) -and ($DeploymentScope -eq "resourcegroup")) {
       $scopePath = '/subscriptions/{0}/resourceGroups/{1}' -f $SubscriptionId, $ResourceGroupName
-    } elseif ($SubscriptionId -and $scope -eq "subscription") {
+    } elseif ($SubscriptionId -and $DeploymentScope -eq "subscription") {
       $scopePath = '/subscriptions/{0}' -f $SubscriptionId
-    } elseif ($ManagementGroupId -and $scope -eq "managementgroup") {
+    } elseif ($ManagementGroupId -and $DeploymentScope -eq "managementgroup") {
       $scopePath = '/providers/Microsoft.Management/managementGroups/{0}' -f $ManagementGroupId
     } else {
-      throw "Must specify either resourcegroup, subscription or managementgroup scope"
+      throw "Must specify either resourcegroup, subscription or managementgroup deployment scope"
     }
     #endregion
   }
@@ -68,7 +69,7 @@ function New-ARMScope {
   process {
     switch ($PSCmdlet.ParameterSetName) {
       scope {
-        if ($PSCmdlet.ShouldProcess("Scope [$scope]", 'Create')) {
+        if ($PSCmdlet.ShouldProcess("Scope [$DeploymentScope]", 'Create')) {
           $scopeObject = ([ARMDeploymentScope]::new($scopePath))
         }
       }
