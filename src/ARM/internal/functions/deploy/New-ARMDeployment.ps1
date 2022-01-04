@@ -174,7 +174,8 @@ function New-ARMDeployment {
 
     #region execution timer
     $start = $(Get-Date)
-
+  }
+  process {
     #region Initialize deployment service
     try {
       Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentService.Initializing"
@@ -190,8 +191,7 @@ function New-ARMDeployment {
       $deploymentService.AzModuleIsInstalled()
     }
     #endregion
-  }
-  process {
+
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Processing"
 
     #region Parse Content
