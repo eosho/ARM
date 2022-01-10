@@ -3,7 +3,7 @@ param (
 
   $TestFunctions = $false,
 
-  $TestIntegration = $true,
+  $TestIntegration = $false,
 
   [ValidateSet('None', 'Normal', 'Detailed', 'Diagnostic')]
   $Output = "None",
