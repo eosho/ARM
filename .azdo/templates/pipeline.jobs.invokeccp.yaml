@@ -13,8 +13,6 @@ jobs:
   displayName: InvokeCCP_${{ parameters.resource }}
   steps:
   - checkout: self
-
-  - ${{ each value in parameters.invokeCCPArgs  }}:
   # - task: AzurePowerShell@5
   #   displayName: 'Deploy'
   #   inputs:
