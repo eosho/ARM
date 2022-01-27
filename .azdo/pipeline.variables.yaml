@@ -4,7 +4,7 @@ variables:
 - name: vmImage
   value: Ubuntu-latest
 
-- name: version
+- name: projectVersion
   value: 1.0.0
 
 - name: projectName
