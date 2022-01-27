@@ -104,12 +104,12 @@ stages:
           templateParameterFilePath: '$(bicepDirectory)/Microsoft.Web/hostingEnvironments/app-service-environment-parameters-full.json'
           displayName: 'Deploy ASE'
 
-      - template: templates/pipeline.jobs.invokeccp.yaml
-        parameters:
-          jobName: 'Deploy_ACR'
-          serviceConnection: '$(serviceConnection)'
-          templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
-          displayName: 'Deploy ACR'
+      # - template: templates/pipeline.jobs.invokeccp.yaml
+      #   parameters:
+      #     jobName: 'Deploy_ACR'
+      #     serviceConnection: '$(serviceConnection)'
+      #     templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
+      #     displayName: 'Deploy ACR'
 
   # ######## DEPLOYMENT ########
   # Deploys main.bicep template to stand up entire environment + configuration
