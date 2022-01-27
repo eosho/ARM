@@ -3,11 +3,14 @@
 # Eg: DNS records, firewall rules, network rules etc.
 
 parameters:
-  invokeCCPArgs: ''
+  serviceConnection: ''
+  resource: ''
+  templateParameterFilePath: ''
+  displayName: ''
 
 jobs:
-- job: InvokeCCP
-  displayName: InvokeCCP
+- job: InvokeCCP_${{ parameters.resource }}
+  displayName: InvokeCCP_${{ parameters.resource }}
   steps:
   - checkout: self
 
@@ -21,4 +24,4 @@ jobs:
   #     ScriptArguments: '-ParameterFile $(templateParameterFilePath) -PipelineStage "buildAndDeploy"'
   #     azurePowerShellVersion: 'LatestVersion'
 
-  - script: echo "${{ value.displayName }}"
+  - script: echo "${{ parameters.displayName }}""

@@ -31,14 +31,14 @@ parameters:
     displayName: Values needed for CCP
     type: object
     default:
-      ase:
-        - serviceConnection: ''
-        - templateParameterFilePath: ''
-        - displayName: 'Deploy_ASE'
-      acr:
-        - serviceConnection: ''
-        - templateParameterFilePath: ''
-        - displayName: 'Deploy_ACR'
+      - resource: 'ase'
+        serviceConnection: ''
+        templateParameterFilePath: ''
+        displayName: 'Deploy_ASE'
+      - resource: acr
+        serviceConnection: ''
+        templateParameterFilePath: ''
+        displayName: 'Deploy_ACR'
 
   - name: validateDeploymentType
     displayName: Validate Deployment
@@ -108,9 +108,13 @@ stages:
         eq('${{ parameters.invokeCCPPipeline }}', 'true')
       )
     jobs:
+      - ${{ each value in parameters.invokeCCPArgs  }}:
         - template: templates/pipeline.jobs.invokeccp.yaml
           parameters:
-            invokeCCPArgs: "${{ parameters.invokeCCPArgs }}"
+            serviceConnection: ${{ value.serviceConnection }}
+            templateParameterFilePath: ${{ value.templateParameterFilePath }}
+            displayName: ${{ value.displayName }}
+            resource: ${{ value.resource }}
 
   # ######## DEPLOYMENT ########
   # Deploys main.bicep template to stand up entire environment + configuration
