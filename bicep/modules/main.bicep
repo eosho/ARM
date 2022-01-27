@@ -176,10 +176,10 @@ module redis 'Microsoft.Cache/redis/deploy.bicep' = {
   params: {
     environmentName: environmentName
     redisName: redisCacheName
-    workspaceResourceId: workspace.outputs.logAnalyticsResourceId
     skuName: 'Premium'
     skuCapacity: 1
     storageAccountId: storage.outputs.storageAccountResourceId
+    workspaceId: workspace.outputs.logAnalyticsWorkspaceId
     subnetId: '${vnet.id}/subnets/sharedSubnet'
     tags: resourceTags
   }
@@ -235,33 +235,33 @@ module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep'
 }
 
 // APIM
-// module apim 'Microsoft.ApiManagement/service/deploy.bicep' = {
-//   scope: resourceGroup(apimResourceGroupName)
-//   name: apimName
-//   params: {
-//     name: apimName
-//     publisherEmail: apimPublisherEmail
-//     publisherName: apimPublisherName
-//     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
-//     sku: apimSku
-//     skuCount: 1
-//     subnetResourceId: '${vnet.id}/subnets/ApiManagementSubnet'
-//     virtualNetworkType: 'External'
-//     diagnosticWorkspaceId: workspace.outputs.logAnalyticsResourceId
-//     keyVaultResourceId: keyVault.outputs.keyVaultResourceId
-//     apis: apimApis
-//     authorizationServers: apimAuthorizationServers
-//     backends: apimBackends
-//     caches: apimCaches
-//     policies: apimPolicies
-//     portalSettings: apimPortalSettings
-//     subscriptions: apimSubscriptions
-//     identityProviders: apimIdentityProviders
-//     namedValues: apimNamedValues
-//     products: apimProducts
-//     tags: resourceTags
-//   }
-// }
+module apim 'Microsoft.ApiManagement/service/deploy.bicep' = {
+  scope: resourceGroup(apimResourceGroupName)
+  name: apimName
+  params: {
+    name: apimName
+    publisherEmail: apimPublisherEmail
+    publisherName: apimPublisherName
+    diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    sku: apimSku
+    skuCount: 1
+    subnetResourceId: '${vnet.id}/subnets/ApiManagementSubnet'
+    virtualNetworkType: 'External'
+    diagnosticWorkspaceId: workspace.outputs.logAnalyticsResourceId
+    keyVaultResourceId: keyVault.outputs.keyVaultResourceId
+    apis: apimApis
+    authorizationServers: apimAuthorizationServers
+    backends: apimBackends
+    caches: apimCaches
+    policies: apimPolicies
+    portalSettings: apimPortalSettings
+    subscriptions: apimSubscriptions
+    identityProviders: apimIdentityProviders
+    namedValues: apimNamedValues
+    products: apimProducts
+    tags: resourceTags
+  }
+}
 
 // Deploy log analytics workspace
 module workspace 'Microsoft.OperationalInsights/workspaces/deploy.bicep' = {

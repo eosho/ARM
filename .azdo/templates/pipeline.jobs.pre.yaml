@@ -13,6 +13,7 @@ jobs:
 
   - job: Install
     displayName: 'Install Bicep'
+    dependsOn: Prerequisites
     pool:
       vmImage: $(vmImage)
     steps:

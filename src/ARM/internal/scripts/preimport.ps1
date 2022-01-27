@@ -25,24 +25,24 @@ $modules = @(
   }
 )
 
-Write-PSFMessage -Level Important -Message "Starting module import..."
-Write-PSFMessage -Level Important -Message "Checking module dependencies..."
+Write-Output "Starting module import..."
+Write-Output "Checking module dependencies..."
 
 foreach ($module in $modules) {
   try {
     $installedModule = Get-InstalledModule -Name $module.Name -ErrorAction SilentlyContinue
 
     if (-not ($installedModule)) {
-      Write-PSFMessage -Level Important -Message "Installing: [$($module.Name)] from [$($module.Repository)]"
+      Write-Output "Installing: [$($module.Name)] from [$($module.Repository)]"
       $checkModule = Install-Module -Name $module.Name -Repository $module.Repository -Force -AllowClobber -SkipPublisherCheck -Scope $moduleInstallScope | Import-Module -Force
 
       if ($checkModule) {
-        Write-PSFMessage -Level Significant -Message "Installed the installed module: [$($checkModule.Name)] - [$($checkModule.Version)]"
+        Write-Output "Installed the installed module: [$($checkModule.Name)] - [$($checkModule.Version)]"
       }
     } else {
-      Write-PSFMessage -Level Important -Message "Located the installed module: [$($installedModule.Name)] - [$($installedModule.Version)]"
+      Write-Output "Located the installed module: [$($installedModule.Name)] - [$($installedModule.Version)]"
     }
   } catch {
-    Write-PSFMessage -Level Error -Message "Failed to install module: [$($module.Name)] from [$($module.Repository)]. Details: $($_.Exception.Message)."
+    WWrite-Output "Failed to install module: [$($module.Name)] from [$($module.Repository)]. Details: $($_.Exception.Message)."
   }
 }

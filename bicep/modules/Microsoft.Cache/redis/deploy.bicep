@@ -58,9 +58,6 @@ param redisConfiguration object = {}
 ])
 param enableNonSslPort bool = false
 
-@description('Resource Id for the log analytics workspace for diagnostics logs.')
-param workspaceResourceId string
-
 @description('The number of replicas to be created per master.')
 param replicasPerMaster int = 0
 
