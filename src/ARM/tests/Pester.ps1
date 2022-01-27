@@ -22,7 +22,7 @@ $global:__pester_data = @{ }
 
 Remove-Module ARM -ErrorAction Ignore
 
-Import-Module "$PSScriptRoot\..\ARM.psd1" -Scope Global
+#Import-Module "$PSScriptRoot\..\ARM.psd1" -Scope Global
 Import-Module "$PSScriptRoot\..\ARM.psm1" -Scope Global -Force
 
 # Need to import explicitly so we can use the configuration class

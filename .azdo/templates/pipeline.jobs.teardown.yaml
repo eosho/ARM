@@ -19,4 +19,6 @@ jobs:
       azurePowerShellVersion: 'Latest'
       ScriptType: 'InlineScript'
       Inline: |
-        Invoke-ARMDeployment -Scope "resourcegroup" -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment
+        . $(baseWorkingDirectory)/tests/Pester.ps1
+
+        Invoke-ARMDeployment -Scope "subscription" -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment

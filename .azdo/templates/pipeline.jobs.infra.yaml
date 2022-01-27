@@ -8,8 +8,8 @@ parameters:
   validateDeploymentType: ''
 
 jobs:
-  - job: Deploy_Environment
-    displayName: 'Deploy Environment'
+  - job: Deploy_${{ parameters.environmentName }}
+    displayName: 'Deploy'
     pool:
       vmImage: "${{ parameters.vmImage }}"
     steps:
@@ -24,35 +24,35 @@ jobs:
           downloadPath: "$(Build.ArtifactsDirectory)"
 
       - task: AzurePowerShell@5
-        displayName: "Deploy Bicep template"
+        displayName: "Deploy Bicep"
         inputs:
           azureSubscription: "$(serviceConnection)"
           ScriptType: "InlineScript"
           Inline: |
             # load module
-            . $(baseWorkingDirectory)/internal/scripts/preimport.ps1
+            . $(baseWorkingDirectory)/tests/Pester.ps1
 
-            $paramArgs = @{}
+            $deploymentArgs = @{}
             if ('${{ parameters.validateDeploymentType }}' -eq 'validate') {
-              $paramArgs += @{
+              $deploymentArgs += @{
                 Validate = $true
               }
             } elseif ('${{ parameters.validateDeploymentType }}' -eq 'validateWhatIf') {
-                $paramArgs += @{
+                $deploymentArgs += @{
                   ValidateWhatIf = $true
                 }
               }
             }
 
-            $paramArgs += @{
-              SubscriptionId          = "$(subscriptionId)"
-              DeploymentTemplate      = '$(System.DefaultWorkingDirectory)/bicep/modules/main.json'
-              ResourceGroupName       = "$(resourceGroupName)"
-              DeploymentScope         = "resourcegroup"
-              TemplateParameterObject = @{
-              }
-              Location              = "$(region)"
+            $deploymentArgs += @{
+              Scope                     = "subscription"
+              SubscriptionId            = "$(subscriptionId)"
+              DeploymentTemplate        = "$(bicepDirectory)/main.json"
+              ResourceGroupName         = "$(resourceGroupName)"
+              DeploymentScope           = "resourcegroup"
+              TemplateParameterFilePath = "$(bicepDirectory)/main.parameters.${{ parameters.environmentName }}.json"
+              DefaultDeploymentRegion   = "$(region)"
             }
 
-            Invoke-ARMDeployment @paramArgs
+            Invoke-ARMDeployment @deploymentArgs
           azurePowerShellVersion: "LatestVersion"

@@ -1,32 +1,14 @@
-name: $(projectName)-$(projectVersion)_${{ parameters.environment }}_$(Date:yyyyMMdd)_$(Rev:r)
-
-# resources:
-#   repositories:
-#   - repository: wag-wdp-photoprints
-#     type: git
-#     name: Digital/wag-wdp-photoprints
-#     ref: master
-#   - repository: wag-wdp-refillrx
-#     type: git
-#     name: Digital/wag-wdp-refillrx
-#     ref: master
-#   - repository: wag-wdp-vendorsetup
-#     type: git
-#     name: Digital/wag-wdp-vendorsetup
-#     ref: master
-
-#   - repository: wap-developer-portal
-#     type: git
-#     name: Digital/wap-developer-portal
-#     ref: master
+name: $(projectName)-$(projectVersion)-${{ parameters.environment }}-$(Date:yyyy-MM-dd) [$(BuildId)]
 
 parameters:
   - name: environment
     displayName: --- SELECT Environment ---
     type: string
-    default: dev
+    default: int
     values:
+      - int
       - dev
+      - perf
       - prod
 
   - name: initialize
@@ -37,22 +19,22 @@ parameters:
       - true
       - false
 
+  - name: invokeCCPPipeline
+    displayName: --- SELECT to deploy via CCP ---
+    type: boolean
+    default: false
+    values:
+      - true
+      - false
+
   - name: validateDeploymentType
     displayName: --- Validate Deployment ---
     type: string
-    default: validate
+    default: none
     values:
+      - none
       - validate
       - ValidateWhatIf
-
-  # - name: componentsToDeploy
-  #   type: object
-  #   default:
-  #   - wag-wdp-photoprints
-  #   - wag-wdp-rxrefill
-  #   - wag-wdp-vendorsetup
-  #   - wag-wdp-vendorsetup-ui
-  #   - wap-developer-portal
 
   - name: teardownEnvironment
     displayName: --- SELECT to Delete RG (clean up) ---
@@ -64,6 +46,7 @@ parameters:
 
 variables:
 - template: pipeline.variables.yaml
+
 - ${{ if eq(parameters.environment, 'int') }}:
   - template: /.config/int.config.yaml
 - ${{ if eq(parameters.environment, 'dev') }}:
@@ -74,11 +57,20 @@ variables:
 trigger: none
 
 stages:
+
+  # ######## BUILD ########
+  # Configures Bicep on the hosted agent
+  # Compiles Bicep and preps all build artifacts for consumption by the pipeline.
+
   - stage: Build
     dependsOn: []
     condition: eq('${{ parameters.teardownEnvironment }}', 'false')
     jobs:
       - template: templates/pipeline.jobs.pre.yaml
+
+  # ######## INITIALIZATION ########
+  # Configures the subscription - sets up resource providers and features
+  # Can be expanded to include other initialization steps
 
   - stage: Init
     displayName: Initialize ${{ parameters.environment }} environment
@@ -90,12 +82,20 @@ stages:
           resourceProviders: '$(resourceProviders)'
           resourceProviderFeatures: '$(resourceProviderFeatures)'
 
+  # ######## INVOKE CCP DEPLOYMENT ########
+  # Triggers the CCP deployment pipeline to deploy the selected components
+
   - stage: InvokeCCP
     displayName: 'InvokeCCP_${{ parameters.environment }}'
     dependsOn:
       - Build
       - Init
-    condition: eq('${{ parameters.teardownEnvironment }}', 'false')
+    condition: |
+      and
+      (
+        eq('${{ parameters.teardownEnvironment }}', 'false'),
+        eq('${{ parameters.invokeCCPPipeline }}', 'true')
+      )
     jobs:
       - template: templates/pipeline.jobs.invokeccp.yaml
         parameters:
@@ -109,13 +109,22 @@ stages:
           templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
           displayName: 'Deploy ACR'
 
+  # ######## DEPLOYMENT ########
+  # Deploys main.bicep template to stand up entire environment + configuration
+  # Optionally depends on InvokeCCP stage
+
   - stage: DeployInfra
     displayName: Deploy ${{ parameters.environment }} Infra
     dependsOn:
       - Build
       - Init
       - InvokeCCP
-    condition: eq('${{ parameters.teardownEnvironment }}', 'false')
+    condition: |
+      and
+      (
+        eq('${{ parameters.teardownEnvironment }}', 'false'),
+        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped')
+      )
     jobs:
       - template: templates/pipeline.jobs.infra.yaml
         parameters:
@@ -127,15 +136,6 @@ stages:
           serviceConnection: '$(serviceConnection)'
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
 
-  # - ${{ each component in parameters.componentsToDeploy }}:
-  #   - stage: Deploy_${{ component }}
-  #     displayName: Deploy ${{ component }}
-  #     dependsOn:
-  #       - DeployInfra
-  #     jobs:
-  #       - template: templates/pipeline.jobs.app.yaml
-
-# Tears down only resource group - N/A to shared resource group
   - stage: TeardownEnv
     dependsOn: []
     condition: |
