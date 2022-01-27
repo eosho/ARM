@@ -6,9 +6,10 @@ parameters:
   serviceConnection: ''
   templateParameterFilePath: ''
   displayName: ''
+  jobName: ''
 
 jobs:
-- job: InvokeCCP
+- job: $(jobName)
   displayName: $(displayName)
   steps:
   - checkout: self
