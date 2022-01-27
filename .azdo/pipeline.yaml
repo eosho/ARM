@@ -2,7 +2,7 @@ name: $(projectName)-$(projectVersion)-${{ parameters.environment }}-$(Date:yyyy
 
 parameters:
   - name: environment
-    displayName: --- SELECT Environment ---
+    displayName: Environment Name
     type: string
     default: int
     values:
@@ -12,7 +12,7 @@ parameters:
       - prod
 
   - name: initialize
-    displayName: --- SELECT to Initialize Subscription ---
+    displayName: Initialize Subscription
     type: boolean
     default: false
     values:
@@ -20,7 +20,7 @@ parameters:
       - false
 
   - name: invokeCCPPipeline
-    displayName: --- SELECT to deploy via CCP ---
+    displayName: Trigger CCP Pipeline
     type: boolean
     default: false
     values:
@@ -28,7 +28,7 @@ parameters:
       - false
 
   - name: validateDeploymentType
-    displayName: --- Validate Deployment ---
+    displayName: Validate Deployment
     type: string
     default: none
     values:
@@ -37,7 +37,7 @@ parameters:
       - ValidateWhatIf
 
   - name: teardownEnvironment
-    displayName: --- SELECT to Delete RG (clean up) ---
+    displayName: Destroy Environment
     type: boolean
     default: false
     values:
