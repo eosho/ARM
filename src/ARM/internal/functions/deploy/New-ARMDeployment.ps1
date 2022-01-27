@@ -151,7 +151,7 @@ function New-ARMDeployment {
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [Alias("Location", "loc")]
-    [string] $DefaultDeploymentRegion = "EastUS",
+    [string] $DefaultDeploymentRegion = "EastUS2",
 
     [Parameter(Mandatory = $false)]
     [switch] $Validate,

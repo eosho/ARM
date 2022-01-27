@@ -1,7 +1,7 @@
 parameters:
   resourceGroupName: ''
   environmentName: ''
-  region: ''
+  location: ''
   prefix: ''
   vmImage: ''
   serviceConnection: ''
@@ -49,7 +49,7 @@ jobs:
               DeploymentTemplate        = "$(bicepDirectory)/main.json"
               ResourceGroupName         = "$(resourceGroupName)"
               TemplateParameterFilePath = "$(bicepDirectory)/main.parameters.${{ parameters.environmentName }}.json"
-              DefaultDeploymentRegion   = "$(region)"
+              Location                  = "$(location)"
             }
 
             Invoke-ARMDeployment @deploymentArgs
