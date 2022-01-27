@@ -7,7 +7,7 @@ parameters:
 
 jobs:
 - job: Teardown
-  displayName: Teardown ${{ parameters.environmentName }}
+  displayName: Teardown ${{ upper(parameters.environmentName) }}
   pool:
     vmImage: "${{ parameters.vmImage }}"
   steps:

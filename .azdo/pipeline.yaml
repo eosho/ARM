@@ -152,4 +152,4 @@ stages:
           vmImage: '$(vmImage)'
           serviceConnection: '$(serviceConnection)'
           subscriptionId: '$(subscriptionId)'
-          environmentName: '$(environment)'
+          environmentName: '${{ parameters.environment }}'
