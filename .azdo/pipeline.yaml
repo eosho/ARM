@@ -34,7 +34,7 @@ parameters:
     values:
       - none
       - validate
-      - ValidateWhatIf
+      - validateWhatIf
 
   - name: teardownEnvironment
     displayName: Destroy Environment
