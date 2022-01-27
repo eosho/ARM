@@ -6,20 +6,18 @@ parameters:
   serviceConnection: ''
   resource: ''
   templateParameterFilePath: ''
-  displayName: ''
 
 jobs:
 - job: InvokeCCP_${{ parameters.resource }}
   displayName: InvokeCCP_${{ parameters.resource }}
   steps:
   - checkout: self
-  # - task: AzurePowerShell@5
-  #   displayName: 'Deploy'
-  #   inputs:
-  #     azureSubscription: '$(serviceConnection)'
-  #     ScriptType: 'FilePath'
-  #     ScriptPath: '$(System.DefaultWorkingDirectory)/trigger-ccp-pipeline.ps1'
-  #     ScriptArguments: '-ParameterFile $(templateParameterFilePath) -PipelineStage "buildAndDeploy"'
-  #     azurePowerShellVersion: 'LatestVersion'
 
-  - script: echo "${{ parameters.displayName }}""
+  - task: AzurePowerShell@5
+    displayName: 'Deploy_${{ parameters.resource }}'
+    inputs:
+      azureSubscription: '${{ parameters.serviceConnection }}'
+      ScriptType: 'FilePath'
+      ScriptPath: '$(System.DefaultWorkingDirectory)/external/scripts/trigger-ccp-pipeline.ps1'
+      ScriptArguments: '-ParameterFile "${{ parameters.templateParameterFilePath }}" -PipelineStage "buildAndDeploy"'
+      azurePowerShellVersion: 'LatestVersion'

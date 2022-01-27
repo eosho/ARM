@@ -1,6 +1,7 @@
 name: $(projectName)-$(projectVersion)-${{ parameters.environment }}-$(Date:yyyy-MM-dd) [$(BuildId)]
 
 parameters:
+  # Required. The deployment environment. Also helps inject the appropriate environment variables.
   - name: environment
     displayName: Environment Name
     type: string
@@ -11,6 +12,7 @@ parameters:
       - perf
       - prod
 
+  # Optional. Set if you are working in a greenfield environment and need your subscription configured
   - name: initialize
     displayName: Initialize Subscription
     type: boolean
@@ -19,6 +21,7 @@ parameters:
       - true
       - false
 
+  # Optional. Set to true if you want to trigger a CCP deployment as part of your deployment
   - name: invokeCCPPipeline
     displayName: Trigger CCP Pipeline
     type: boolean
@@ -27,19 +30,18 @@ parameters:
       - true
       - false
 
+  # Only required if InvokeCCPPipeline is set to true
   - name: invokeCCPArgs
     displayName: Values needed for CCP
     type: object
     default:
-      - resource: 'ase'
-        serviceConnection: ''
-        templateParameterFilePath: ''
-        displayName: 'Deploy_ASE'
+      - resource: ase
+        templateParameterFilePath: '$(bicepDirectory)/Microsoft.Web/hostingEnvironments/app-service-environment-parameters-full.json'
       - resource: acr
-        serviceConnection: ''
-        templateParameterFilePath: ''
-        displayName: 'Deploy_ACR'
+        templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/registries/acr-parameters-full.json'
 
+  # Optional. If set to none, the deployment will not be validated
+  # - If set to validate or validateWhatIf, the deployment will be validated
   - name: validateDeploymentType
     displayName: Validate Deployment
     type: string
@@ -49,6 +51,7 @@ parameters:
       - validate
       - validateWhatIf
 
+  # Optional. If set to true, the resource group will be deleted.
   - name: teardownEnvironment
     displayName: Destroy Environment
     type: boolean
@@ -58,8 +61,10 @@ parameters:
       - false
 
 variables:
+# Global pipeline variables
 - template: pipeline.variables.yaml
 
+# Environment specific pipeline variables - injects serviceConnection, naming conventions... etc if any.
 - ${{ if eq(parameters.environment, 'int') }}:
   - template: /.config/int.config.yaml
 - ${{ if eq(parameters.environment, 'dev') }}:
@@ -112,14 +117,14 @@ stages:
         - template: templates/pipeline.jobs.invokeccp.yaml
           parameters:
             serviceConnection: ${{ value.serviceConnection }}
-            templateParameterFilePath: ${{ value.templateParameterFilePath }}
-            displayName: ${{ value.displayName }}
+            templateParameterFilePath: $(serviceConnection)
             resource: ${{ value.resource }}
 
   # ######## DEPLOYMENT ########
   # Deploys main.bicep template to stand up entire environment + configuration
   # Optionally depends on InvokeCCP stage
 
+  # Deploy MSFT Internal Azure
   - stage: DeployINTInfra
     displayName: Deploy INT
     dependsOn:
@@ -144,6 +149,7 @@ stages:
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
           templateParameterFilePath: "$(bicepDirectory)/main.parameters.int.json"
 
+  # Deploy Dev environment
   - stage: DeployDEVInfra
     displayName: Deploy DEV
     dependsOn:
@@ -168,6 +174,7 @@ stages:
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
           templateParameterFilePath: "$(bicepDirectory)/main.parameters.dev.json"
 
+  # Deploy Perf environment
   - stage: DeployPERFInfra
     displayName: Deploy PERF
     dependsOn:
@@ -192,6 +199,7 @@ stages:
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
           templateParameterFilePath: "$(bicepDirectory)/main.parameters.perf.json"
 
+  # Deploy Prod environment
   - stage: DeployPRODInfra
     displayName: Deploy PROD
     dependsOn:
@@ -215,6 +223,10 @@ stages:
           serviceConnection: '$(serviceConnection)'
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
           templateParameterFilePath: "$(bicepDirectory)/main.parameters.prod.json"
+
+  # ######## TEARDOWN ########
+  # Cleans up the resources and deletes the deployment resource group
+  # Also.. removes resource locks, if any.
 
   - stage: TeardownEnv
     dependsOn: []
