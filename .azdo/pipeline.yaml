@@ -1,4 +1,4 @@
-name: $(projectName)-$(projectVersion)-${{ parameters.environment }}-$(Date:yyyy-MM-dd) [$(BuildId)]
+name: upper($(projectName)-$(projectVersion)-${{ parameters.environment }}-$(Date:yyyy-MM-dd) [$(BuildId)])
 
 parameters:
   - name: environment
