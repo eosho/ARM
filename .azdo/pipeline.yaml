@@ -112,8 +112,8 @@ stages:
   # Deploys main.bicep template to stand up entire environment + configuration
   # Optionally depends on InvokeCCP stage
 
-  - stage: DeployInfra
-    displayName: Deploy ${{ upper(parameters.environment) }} Infra
+  - stage: DeployINTInfra
+    displayName: Deploy INT
     dependsOn:
       - Build
       - Initialize
@@ -122,18 +122,91 @@ stages:
       and
       (
         eq('${{ parameters.teardownEnvironment }}', 'false'),
-        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped')
+        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped'),
+        eq('${{ parameters.environment }}', 'int')
       )
     jobs:
       - template: templates/pipeline.jobs.infra.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
-          environmentName: '${{ parameters.environment }}'
           location: '$(location)'
           prefix: '$(prefix)'
           vmImage: '$(vmImage)'
           serviceConnection: '$(serviceConnection)'
           validateDeploymentType: '${{ parameters.validateDeploymentType }}'
+          templateParameterFilePath: "$(bicepDirectory)/main.parameters.int.json"
+
+  - stage: DeployDEVInfra
+    displayName: Deploy DEV
+    dependsOn:
+      - Build
+      - Initialize
+      - InvokeCCP
+    condition: |
+      and
+      (
+        eq('${{ parameters.teardownEnvironment }}', 'false'),
+        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped'),
+        eq('${{ parameters.environment }}', 'dev')
+      )
+    jobs:
+      - template: templates/pipeline.jobs.infra.yaml
+        parameters:
+          resourceGroupName: '$(resourceGroupName)'
+          location: '$(location)'
+          prefix: '$(prefix)'
+          vmImage: '$(vmImage)'
+          serviceConnection: '$(serviceConnection)'
+          validateDeploymentType: '${{ parameters.validateDeploymentType }}'
+          templateParameterFilePath: "$(bicepDirectory)/main.parameters.dev.json"
+
+  - stage: DeployPERFInfra
+    displayName: Deploy PERF
+    dependsOn:
+      - Build
+      - Initialize
+      - InvokeCCP
+    condition: |
+      and
+      (
+        eq('${{ parameters.teardownEnvironment }}', 'false'),
+        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped'),
+        eq('${{ parameters.environment }}', 'perf')
+      )
+    jobs:
+      - template: templates/pipeline.jobs.infra.yaml
+        parameters:
+          resourceGroupName: '$(resourceGroupName)'
+          location: '$(location)'
+          prefix: '$(prefix)'
+          vmImage: '$(vmImage)'
+          serviceConnection: '$(serviceConnection)'
+          validateDeploymentType: '${{ parameters.validateDeploymentType }}'
+          templateParameterFilePath: "$(bicepDirectory)/main.parameters.perf.json"
+
+  - stage: DeployPRODInfra
+    displayName: Deploy PROD
+    dependsOn:
+      - Build
+      - Initialize
+      - InvokeCCP
+    condition: |
+      and
+      (
+        eq('${{ parameters.teardownEnvironment }}', 'false'),
+        in(dependencies.InvokeCCP.result, 'succeeded', 'Skipped'),
+        eq('${{ parameters.environment }}', 'prod')
+      )
+    jobs:
+      - template: templates/pipeline.jobs.infra.yaml
+        parameters:
+          resourceGroupName: '$(resourceGroupName)'
+          location: '$(location)'
+          prefix: '$(prefix)'
+          vmImage: '$(vmImage)'
+          serviceConnection: '$(serviceConnection)'
+          validateDeploymentType: '${{ parameters.validateDeploymentType }}'
+          templateParameterFilePath: "$(bicepDirectory)/main.parameters.prod.json"
 
   - stage: TeardownEnv
     dependsOn: []

@@ -1,14 +1,14 @@
 parameters:
   resourceGroupName: ''
-  environmentName: ''
   location: ''
   prefix: ''
   vmImage: ''
   serviceConnection: ''
   validateDeploymentType: ''
+  templateParameterFilePath: ''
 
 jobs:
-  - job: Deploy_${{ parameters.environmentName }}
+  - job: DeployInfra
     displayName: 'Deploy'
     pool:
       vmImage: "${{ parameters.vmImage }}"
@@ -41,15 +41,13 @@ jobs:
               $deploymentArgs += @{
                 ValidateWhatIf = $true
               }
-            } else {
-              Write-Host "##[debug]Deployment will now begin to environment - '${{ parameters.environmentName }}'"
             }
 
             $deploymentArgs += @{
               Scope                     = "subscription"
               SubscriptionId            = "$(subscriptionId)"
               TemplateFilePath          = '$(Build.ArtifactsDirectory)/deployment/main.json'
-              TemplateParameterFilePath = "$(bicepDirectory)/main.parameters.${{ parameters.environmentName }}.json"
+              TemplateParameterFilePath = "($templateParameterFilePath)"
               Location                  = "$(location)"
             }
 
