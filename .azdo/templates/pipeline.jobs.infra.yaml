@@ -41,6 +41,8 @@ jobs:
               $deploymentArgs += @{
                 ValidateWhatIf = $true
               }
+            } else {
+              Write-Host "##[debug]Deployment will now begin to environment - '${{ parameters.environmentName }}'"
             }
 
             $deploymentArgs += @{
