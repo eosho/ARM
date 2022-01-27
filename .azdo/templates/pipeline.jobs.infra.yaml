@@ -48,7 +48,7 @@ jobs:
             $deploymentArgs += @{
               Scope                     = "subscription"
               SubscriptionId            = "$(subscriptionId)"
-              TemplateFilePath          = "$(Build.ArtifactsDirectory)/deployment/main.json"
+              TemplateFilePath          = '$(Build.ArtifactsDirectory)/deployment/main.json'
               TemplateParameterFilePath = "$(bicepDirectory)/main.parameters.${{ parameters.environmentName }}.json"
               Location                  = "$(location)"
             }
