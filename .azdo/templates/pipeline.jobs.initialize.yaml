@@ -18,7 +18,14 @@ jobs:
         $resourceProviders = ConvertFrom-Json '$(resourceProviders)'
         foreach ($resourceProvider in $resourceProviders) {
           if ((Get-AzResourceProvider -ProviderNamespace $resourceProvider).RegistrationState -contains 'NotRegistered' ) {
-            Register-AzResourceProvider -ProviderNamespace $resourceProvider
+            try {
+              Write-Output "Registering ResourceProvider - $resourceProvider"
+              Register-AzResourceProvider -ProviderNamespace $resourceProvider
+            } catch {
+              Write-Error "Registering ResourceProvider failed - $resourceProvider. Details: $($_.Exception.Message)" -ErrorAction SilentlyContinue
+            }
+          } else {
+            Write-Output "ResourceProvider - $resourceProvider is already registered"
           }
         }
 
@@ -32,6 +39,13 @@ jobs:
         $features = ConvertFrom-Json '$(resourceProviderFeatures)'
         foreach ($feature in $features) {
           if ((Get-AzProviderFeature -FeatureName $feature.FeatureName -ProviderNamespace $feature.ProviderNamespace).RegistrationState -contains 'NotRegistered' ) {
-            Register-AzProviderFeature -FeatureName $feature.FeatureName -ProviderNamespace $feature.ProviderNamespace
+            try {
+              Write-PipelineLogger -LogType "info" -Message "Registering ProviderFeature: $($feature.FeatureName)"
+              Register-AzProviderFeature -FeatureName $feature.FeatureName -ProviderNamespace $feature.ProviderNamespace
+            } catch {
+              Write-PipelineLogger -LogType "error" -Message "Registering ProviderFeature: $($feature.FeatureName) failed with error: $($_.Exception.Message)"
+            }
+          } else {
+            Write-Output "ResourceProvider feature - $($feature.FeatureName) is already registered"
           }
         }
