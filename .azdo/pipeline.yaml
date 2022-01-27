@@ -27,6 +27,19 @@ parameters:
       - true
       - false
 
+  - name: invokeCCPArgs
+    displayName: Values needed for CCP
+    type: object
+    default:
+      ase:
+        - serviceConnection: ''
+        - templateParameterFilePath: ''
+        - displayName: 'Deploy_ASE'
+      acr:
+        - serviceConnection: ''
+        - templateParameterFilePath: ''
+        - displayName: 'Deploy_ACR'
+
   - name: validateDeploymentType
     displayName: Validate Deployment
     type: string
@@ -95,18 +108,12 @@ stages:
         eq('${{ parameters.invokeCCPPipeline }}', 'true')
       )
     jobs:
-      - template: templates/pipeline.jobs.invokeccp.yaml
-        parameters:
-          serviceConnection: '$(serviceConnection)'
-          templateParameterFilePath: '$(bicepDirectory)/Microsoft.Web/hostingEnvironments/app-service-environment-parameters-full.json'
-          displayName: 'Deploy ASE'
-
-      # - template: templates/pipeline.jobs.invokeccp.yaml
-      #   parameters:
-      #     jobName: 'Deploy_ACR'
-      #     serviceConnection: '$(serviceConnection)'
-      #     templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
-      #     displayName: 'Deploy ACR'
+      - ${{ each value in parameters.invokeCCPArgs  }}:
+        - template: templates/pipeline.jobs.invokeccp.yaml
+          parameters:
+            serviceConnection: ${{ value.serviceConnection }}
+            templateParameterFilePath: ${{ value.templateParameterFilePath }}
+            displayName: ${{ value.displayName }}
 
   # ######## DEPLOYMENT ########
   # Deploys main.bicep template to stand up entire environment + configuration

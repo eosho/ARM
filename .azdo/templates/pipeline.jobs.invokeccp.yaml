@@ -8,16 +8,18 @@ parameters:
   displayName: ''
 
 jobs:
-- job: InvokeCCP
-  displayName: InvokeCCP
+- job: InvokeCCP_${{ parameters.displayName }}
+  displayName: InvokeCCP_${{ parameters.displayName }}
   steps:
   - checkout: self
 
-  - task: AzurePowerShell@5
-    displayName: 'Deploy'
-    inputs:
-      azureSubscription: '$(serviceConnection)'
-      ScriptType: 'FilePath'
-      ScriptPath: '$(System.DefaultWorkingDirectory)/trigger-ccp-pipeline.ps1'
-      ScriptArguments: '-ParameterFile $(templateParameterFilePath) -PipelineStage "buildAndDeploy"'
-      azurePowerShellVersion: 'LatestVersion'
+  # - task: AzurePowerShell@5
+  #   displayName: 'Deploy'
+  #   inputs:
+  #     azureSubscription: '$(serviceConnection)'
+  #     ScriptType: 'FilePath'
+  #     ScriptPath: '$(System.DefaultWorkingDirectory)/trigger-ccp-pipeline.ps1'
+  #     ScriptArguments: '-ParameterFile $(templateParameterFilePath) -PipelineStage "buildAndDeploy"'
+  #     azurePowerShellVersion: 'LatestVersion'
+
+  - script: echo "Script Test"
