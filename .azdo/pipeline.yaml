@@ -73,7 +73,7 @@ stages:
   # Can be expanded to include other initialization steps
 
   - stage: Init
-    displayName: Initialize ${{ parameters.environment }} environment
+    displayName: Initialize ${{ upper(parameters.environment) }} environment
     condition: eq('${{ parameters.Initialize }}', 'true')
     jobs:
       - template: templates/pipeline.jobs.initialize.yaml
@@ -86,7 +86,7 @@ stages:
   # Triggers the CCP deployment pipeline to deploy the selected components
 
   - stage: InvokeCCP
-    displayName: 'InvokeCCP_${{ parameters.environment }}'
+    displayName: 'InvokeCCP_${{ upper(parameters.environment) }}'
     dependsOn:
       - Build
       - Init
