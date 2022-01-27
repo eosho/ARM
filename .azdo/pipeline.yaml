@@ -108,12 +108,9 @@ stages:
         eq('${{ parameters.invokeCCPPipeline }}', 'true')
       )
     jobs:
-      - ${{ each value in parameters.invokeCCPArgs  }}:
         - template: templates/pipeline.jobs.invokeccp.yaml
           parameters:
-            serviceConnection: ${{ value.serviceConnection }}
-            templateParameterFilePath: ${{ value.templateParameterFilePath }}
-            displayName: ${{ value.displayName }}
+            invokeCCPArgs: "${{ parameters.invokeCCPArgs }}"
 
   # ######## DEPLOYMENT ########
   # Deploys main.bicep template to stand up entire environment + configuration
