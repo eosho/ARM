@@ -3,15 +3,16 @@
 # Eg: DNS records, firewall rules, network rules etc.
 
 parameters:
-  serviceConnection: 'ccp-infra'
-  templateParameterFilePath: '$(System.DefaultWorkingDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
-  displayName: 'deploy container registry'
+  serviceConnection: ''
+  templateParameterFilePath: ''
+  displayName: ''
 
 jobs:
 - job: InvokeCCP
   displayName: $(displayName)
   steps:
-  - checkout: 'IT Services/ccp-ent-infra-build'
+  - checkout: self
+
   - task: AzurePowerShell@5
     displayName: $(displayName)
     inputs:
