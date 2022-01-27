@@ -179,7 +179,7 @@ module redis 'Microsoft.Cache/redis/deploy.bicep' = {
     skuName: 'Premium'
     skuCapacity: 1
     storageAccountId: storage.outputs.storageAccountResourceId
-    workspaceId: workspace.outputs.logAnalyticsWorkspaceId
+    workspaceId: workspace.outputs.logAnalyticsResourceId
     subnetId: '${vnet.id}/subnets/sharedSubnet'
     tags: resourceTags
   }
