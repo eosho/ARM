@@ -72,8 +72,7 @@ stages:
   # Configures the subscription - sets up resource providers and features
   # Can be expanded to include other initialization steps
 
-  - stage: Init
-    displayName: Initialize ${{ upper(parameters.environment) }} environment
+  - stage: Initialize
     condition: eq('${{ parameters.Initialize }}', 'true')
     jobs:
       - template: templates/pipeline.jobs.initialize.yaml
@@ -86,10 +85,9 @@ stages:
   # Triggers the CCP deployment pipeline to deploy the selected components
 
   - stage: InvokeCCP
-    displayName: 'InvokeCCP_${{ upper(parameters.environment) }}'
     dependsOn:
       - Build
-      - Init
+      - Initialize
     condition: |
       and
       (
@@ -118,7 +116,7 @@ stages:
     displayName: Deploy ${{ upper(parameters.environment) }} Infra
     dependsOn:
       - Build
-      - Init
+      - Initialize
       - InvokeCCP
     condition: |
       and
