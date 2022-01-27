@@ -115,7 +115,7 @@ stages:
   # Optionally depends on InvokeCCP stage
 
   - stage: DeployInfra
-    displayName: Deploy ${{ parameters.environment }} Infra
+    displayName: Deploy ${{ upper(parameters.environment) }} Infra
     dependsOn:
       - Build
       - Init
