@@ -130,7 +130,7 @@ stages:
       - template: templates/pipeline.jobs.infra.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
-          environmentName: '$(environment)'
+          environmentName: '${{ parameters.environment }}'
           region: '$(region)'
           prefix: '$(prefix)'
           vmImage: '$(vmImage)'
