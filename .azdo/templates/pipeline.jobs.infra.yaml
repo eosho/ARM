@@ -38,9 +38,8 @@ jobs:
                 Validate = $true
               }
             } elseif ('${{ parameters.validateDeploymentType }}' -eq 'validateWhatIf') {
-                $deploymentArgs += @{
-                  ValidateWhatIf = $true
-                }
+              $deploymentArgs += @{
+                ValidateWhatIf = $true
               }
             }
 
