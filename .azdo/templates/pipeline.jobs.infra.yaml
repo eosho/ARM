@@ -47,8 +47,8 @@ jobs:
               Scope                     = "subscription"
               SubscriptionId            = "$(subscriptionId)"
               TemplateFilePath          = '$(Build.ArtifactsDirectory)/deployment/main.json'
-              TemplateParameterFilePath = "$(templateParameterFilePath)"
-              Location                  = "$(location)"
+              TemplateParameterFilePath = "${{ parameters.templateParameterFilePath }}"
+              Location                  = "${{ parameters.location }}"
             }
 
             Invoke-ARMDeployment @deploymentArgs
