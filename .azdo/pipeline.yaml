@@ -141,7 +141,7 @@ stages:
     condition: |
       and
         (
-          eq('${{ parameters.validationOnly }}', 'false'),
+          eq('${{ parameters.validateDeploymentType }}', 'false'),
           eq('${{ parameters.teardownEnvironment }}', 'true')
         )
     jobs:
