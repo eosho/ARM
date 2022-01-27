@@ -1,0 +1,154 @@
+name: $(projectName)-$(projectVersion)_${{ parameters.environment }}_$(Date:yyyyMMdd)_$(Rev:r)
+
+# resources:
+#   repositories:
+#   - repository: wag-wdp-photoprints
+#     type: git
+#     name: Digital/wag-wdp-photoprints
+#     ref: master
+#   - repository: wag-wdp-refillrx
+#     type: git
+#     name: Digital/wag-wdp-refillrx
+#     ref: master
+#   - repository: wag-wdp-vendorsetup
+#     type: git
+#     name: Digital/wag-wdp-vendorsetup
+#     ref: master
+
+#   - repository: wap-developer-portal
+#     type: git
+#     name: Digital/wap-developer-portal
+#     ref: master
+
+parameters:
+  - name: environment
+    displayName: --- SELECT Environment ---
+    type: string
+    default: dev
+    values:
+      - dev
+      - prod
+
+  - name: initialize
+    displayName: --- SELECT to Initialize Subscription ---
+    type: boolean
+    default: false
+    values:
+      - true
+      - false
+
+  - name: validateDeploymentType
+    displayName: --- Validate Deployment ---
+    type: string
+    default: validate
+    values:
+      - validate
+      - ValidateWhatIf
+
+  # - name: componentsToDeploy
+  #   type: object
+  #   default:
+  #   - wag-wdp-photoprints
+  #   - wag-wdp-rxrefill
+  #   - wag-wdp-vendorsetup
+  #   - wag-wdp-vendorsetup-ui
+  #   - wap-developer-portal
+
+  - name: teardownEnvironment
+    displayName: --- SELECT to Delete RG (clean up) ---
+    type: boolean
+    default: false
+    values:
+      - true
+      - false
+
+variables:
+- template: pipeline.variables.yaml
+- ${{ if eq(parameters.environment, 'int') }}:
+  - template: /.config/int.config.yaml
+- ${{ if eq(parameters.environment, 'dev') }}:
+  - template: /.config/dev.config.yaml
+- ${{ if eq(parameters.environment, 'prod') }}:
+  - template: /.config/prod.config.yaml
+
+trigger: none
+
+stages:
+  - stage: Build
+    dependsOn: []
+    condition: eq('${{ parameters.teardownEnvironment }}', 'false')
+    jobs:
+      - template: templates/pipeline.jobs.pre.yaml
+
+  - stage: Init
+    displayName: Initialize ${{ parameters.environment }} environment
+    condition: eq('${{ parameters.Initialize }}', 'true')
+    jobs:
+      - template: templates/pipeline.jobs.initialize.yaml
+        parameters:
+          serviceConnection: '$(serviceConnection)'
+          resourceProviders: '$(resourceProviders)'
+          resourceProviderFeatures: '$(resourceProviderFeatures)'
+
+  - stage: InvokeCCP
+    displayName: 'InvokeCCP_${{ parameters.environment }}'
+    dependsOn:
+      - Build
+      - Init
+    condition: eq('${{ parameters.teardownEnvironment }}', 'false')
+    jobs:
+      - template: templates/pipeline.jobs.invokeccp.yaml
+        parameters:
+          serviceConnection: '$(serviceConnection)'
+          templateParameterFilePath: '$(bicepDirectory)/Microsoft.Web/hostingEnvironments/app-service-environment-parameters-full.json'
+          displayName: 'Deploy ASE'
+
+      - template: templates/pipeline.jobs.invokeccp.yaml
+        parameters:
+          serviceConnection: '$(serviceConnection)'
+          templateParameterFilePath: '$(bicepDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
+          displayName: 'Deploy ACR'
+
+  - stage: DeployInfra
+    displayName: Deploy ${{ parameters.environment }} Infra
+    dependsOn:
+      - Build
+      - Init
+      - InvokeCCP
+    condition: eq('${{ parameters.teardownEnvironment }}', 'false')
+    jobs:
+      - template: templates/pipeline.jobs.infra.yaml
+        parameters:
+          resourceGroupName: '$(resourceGroupName)'
+          environmentName: '$(environmentName)'
+          region: '$(region)'
+          prefix: '$(prefix)'
+          vmImage: '$(vmImage)'
+          serviceConnection: '$(serviceConnection)'
+          validateDeploymentType: '${{ parameters.validateDeploymentType }}'
+
+  # - ${{ each component in parameters.componentsToDeploy }}:
+  #   - stage: Deploy_${{ component }}
+  #     displayName: Deploy ${{ component }}
+  #     dependsOn:
+  #       - DeployInfra
+  #     jobs:
+  #       - template: templates/pipeline.jobs.app.yaml
+
+# Tears down only resource group - N/A to shared resource group
+  - stage: TeardownEnv
+    dependsOn: []
+    condition: |
+      and
+        (
+          eq('${{ parameters.validationOnly }}', 'false'),
+          eq('${{ parameters.teardownEnvironment }}', 'true')
+        )
+    jobs:
+      - template: templates/pipeline.jobs.teardown.yaml
+        parameters:
+          resourceGroupName: '$(resourceGroupName)'
+          vmImage: '$(vmImage)'
+          serviceConnection: '$(serviceConnection)'
+          subscriptionId: '$(subscriptionId)'
+          environmentName: '$(environment)'

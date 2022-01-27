@@ -1,0 +1,22 @@
+# Summary: Invokes CCP pipeline job
+# Description: This pipeline job will invoke the CCP pipeline to deploy any resources that requires post deployment configuration
+# Eg: DNS records, firewall rules, network rules etc.
+
+parameters:
+  serviceConnection: 'ccp-infra'
+  templateParameterFilePath: '$(System.DefaultWorkingDirectory)/Microsoft.ContainerRegistry/acr-parameters-min.json'
+  displayName: 'deploy container registry'
+
+jobs:
+- job: InvokeCCP
+  displayName: $(displayName)
+  steps:
+  - checkout: 'IT Services/ccp-ent-infra-build'
+  - task: AzurePowerShell@5
+    displayName: $(displayName)
+    inputs:
+      azureSubscription: '$(serviceConnection)'
+      ScriptType: 'FilePath'
+      ScriptPath: '$(System.DefaultWorkingDirectory)/trigger-ccp-pipeline.ps1'
+      ScriptArguments: '-ParameterFile $(templateParameterFilePath) -PipelineStage "buildAndDeploy"'
+      azurePowerShellVersion: 'LatestVersion'

@@ -1,0 +1,73 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "2.0.0.0",
+  "parameters": {
+    "tags": {
+      "value": {
+        "LegalSubEntity": "",
+        "SubDivision": "",
+        "Department": "",
+        "CostCenter": "",
+        "EnvType": "",
+        "Sensitivity": "",
+        "SenType": ""
+      },
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.tags%60"
+      }
+    },
+    "location": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.location%60"
+      }
+    },
+    "registryName": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.registryname%60"
+      }
+    },
+    "allowedVirtualNetworks": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.allowedvirtualnetworks%60"
+      }
+    },
+    "allowedIpAddresses": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.allowedipaddresses%60"
+      }
+    },
+    "quarantinePolicyStatus": {
+      "value": "disabled",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.quarantinepolicystatus%60"
+      }
+    },
+    "retentionPolicyDays": {
+      "value": 180,
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.retentionpolicydays%60"
+      }
+    },
+    "replicationLocations": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.replicationlocations%60"
+      }
+    },
+    "roleAssignments": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Facr%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.roleassignments%60"
+      }
+    }
+  },
+  "deploymentParameters": {
+    "resourceGroup": "",
+    "subscription": "",
+    "templateFile": ".\\library\\prod\\acr\\acr-template.json"
+  }
+}

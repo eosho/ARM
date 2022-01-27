@@ -5,10 +5,16 @@ variables:
   value: azureInternal
 
 - name: environmentName
-  value: dev
+  value: int
 
 - name: subscriptionId
   value: f2d85cf0-b21c-4794-a259-f508c89d08c2
 
+- name: subscriptionName
+  value: EROSHOKO MSFT Azure
+
 - name: location
-  value: eastus
+  value: eastus2
+
+- name: resourceGroupName
+  value: core-rg

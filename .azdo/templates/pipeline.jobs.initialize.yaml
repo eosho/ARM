@@ -1,0 +1,37 @@
+parameters:
+  serviceConnection: ''
+  resourceProviders: ''
+  resourceProviderFeatures: ''
+
+jobs:
+- job: ResourceProviders
+  displayName: Register resource providers
+  steps:
+  - checkout: none
+  - task: AzurePowerShell@5
+    displayName: Register resource providers
+    inputs:
+      azureSubscription: $(serviceConnection)
+      azurePowerShellVersion: 'Latest'
+      ScriptType: 'InlineScript'
+      Inline: |
+        $resourceProviders = ConvertFrom-Json '$(resourceProviders)'
+        foreach ($resourceProvider in $resourceProviders) {
+          if ((Get-AzResourceProvider -ProviderNamespace $resourceProvider).RegistrationState -contains 'NotRegistered' ) {
+            Register-AzResourceProvider -ProviderNamespace $resourceProvider
+          }
+        }
+
+  - task: AzurePowerShell@5
+    displayName: Register resource provider features
+    inputs:
+      azureSubscription: $(serviceConnection)
+      azurePowerShellVersion: 'Latest'
+      ScriptType: 'InlineScript'
+      Inline: |
+        $features = ConvertFrom-Json '$(resourceProviderFeatures)'
+        foreach ($feature in $features) {
+          if ((Get-AzProviderFeature -FeatureName $feature.FeatureName -ProviderNamespace $feature.ProviderNamespace).RegistrationState -contains 'NotRegistered' ) {
+            Register-AzProviderFeature -FeatureName $feature.FeatureName -ProviderNamespace $feature.ProviderNamespace
+          }
+        }

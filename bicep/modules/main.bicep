@@ -1,7 +1,12 @@
 targetScope = 'subscription'
 
+/******************************************************************************
+  Parameters
+*/
+
 @description('The name of the deployment environment. Used for naming convention')
 @allowed([
+  'int'
   'dev'
   'qa'
   'prod'
@@ -13,11 +18,16 @@ param projectName string = 'cust-wap'
 
 @description('Azure resource tags metadata')
 param tags object = {
-  CostCenter: 'Marketing Technology'
+  DeptName: 'Innovation'
+  LOB: 'Innovation'
+  DeployDate: '01-07-2022'
+  Deployer: 'Rudi Landolt'
+  CostCenter: 'IT Innovation 5001'
+  CostCode: '1000608610'
   LegalSubEntity: 'Walgreen Co'
   Sensitivity: 'Non-Sensitive'
-  SubDivision: 'Digital Engineering'
-  Department: 'Digital Engineering'
+  SubDivision: 'Innovation'
+  Department: 'Innovation'
   SenType: 'Not Applicable'
 }
 
@@ -30,46 +40,76 @@ param virtualNetworkName string
 @description('The name of the virtual network resource group.')
 param virtualNetworkResourceGroupName string
 
-@description('Name of the Storage Account.')
-param storageAccountName string
+@description('APIM APIs.')
+param apimApis array
 
-@description('Name of the Application Gateway.')
-param appGatewayName string
+@description('APIM Policies.')
+param apimPolicies array
 
-@description('Name of the shared APIM resource.')
-param apiManagementName string
+@description('Optional. Authorization servers.')
+param apimAuthorizationServers array = []
+
+@description('Optional. Backends.')
+param apimBackends array = []
+
+@description('Optional. Caches.')
+param apimCaches array = []
+
+@description('Optional. Identity providers.')
+param apimIdentityProviders array = []
+
+@description('Optional. Named values.')
+param apimNamedValues array = []
+
+@description('Optional. Portal settings.')
+param apimPortalSettings array = []
+
+@description('Optional. Products.')
+param apimProducts array = []
+
+@description('Optional. Subscriptions.')
+param apimSubscriptions array = []
 
 @description('Name of the shared APIM resource group.')
-param apiManagementResourceGroupName string
+param apimResourceGroupName string
+
+@description('The email address of the owner of the service')
+param apimPublisherEmail string = 'admin@contoso.com'
+
+@description('The name of the publisher.')
+param apimPublisherName string = 'Contoso'
+
+@description('Optional. The pricing tier of this API Management service.')
+@allowed([
+  'Consumption'
+  'Developer'
+  'Basic'
+  'Standard'
+  'Premium'
+])
+param apimSku string = 'Developer'
+
+@description('Name of the shared resource group.')
+param sharedResourceGroupName string = 'rpu-nprod-digital-eastus2-ase-02-rg'
 
 @description('Name of the shared App Service Environment.')
-param appServiceEnvironmentName string
-
-@description('Name of the CosmosDB resource.')
-param cosmosDbName string
-
-@description('Name of the Redis cache resource.')
-param redisCacheName string
-
-@description('Name of the Key Vault.')
-param keyVaultName string
+param appServiceEnvironmentName string = 'rpu-nprod-innov-eti-eastus2-asev3-01'
 
 @description('The name of the app service plan to deploy.')
-param appServicePlanName string
-
-@description('Name of the Log Analytics workspace')
-param workspaceName string
-
-@description('Name of the Application Insights')
-param appInsightsName string
+param appServicePlanName string = 'nprod-innov-eti-mvp-asp-01'
 
 @description('Specifies the number of days that logs will be kept for; a value of 0 will retain data indefinitely.')
 @minValue(0)
-@maxValue(365)
+@maxValue(90)
 param diagnosticLogsRetentionInDays int = 90
 
+/******************************************************************************
+  Variables
+*/
+
 var environmentNamingPrefix = isProd ? 'prod' : 'nprod'
-var namingPrefix = '${environmentNamingPrefix}-${projectName}'
+var namingPrefixHyphen = 'rpu-${environmentNamingPrefix}-${projectName}'
+var namingPrefixNoHyphen = 'rpu${environmentNamingPrefix}${projectName}'
 var isProd = (environmentName == 'prod')
 var nonProdEnvTypeTag = {
   EnvType: 'Non-Production'
@@ -78,52 +118,51 @@ var prodEnvTypeTag = {
   EnvType: 'Production'
 }
 var resourceTags = union(tags, (isProd ? prodEnvTypeTag : nonProdEnvTypeTag))
+var storageAccountName = '${namingPrefixNoHyphen}storg01'
+var keyVaultName = '${namingPrefixHyphen}-kv-01'
+var workspaceName = '${namingPrefixHyphen}-ws-01'
+var appInsightsName = '${namingPrefixHyphen}-appins-01'
+var cosmosDbName = '${namingPrefixHyphen}-cosmosdb-01'
+var redisCacheName = '${namingPrefixHyphen}-rediscache-01'
+var appGatewayName = '${namingPrefixHyphen}-appgw-01'
+var apimName = '${namingPrefixHyphen}-apim-01'
+var containerRegistryName = '${namingPrefixNoHyphen}acr01'
 
-/*
+/******************************************************************************
   Existing resources
 */
 
-// Virturl Network resource group
-resource vnetRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
-  name: virtualNetworkResourceGroupName
-}
-
-// Virturl Network resource group
-resource apimRg 'Microsoft.Resources/resourceGroups@2021-04-01' existing = {
-  name: apiManagementResourceGroupName
-}
-
 // Virtual Network
-resource vnet 'Microsoft.Network/applicationGateways@2021-05-01' existing = {
-  scope: resourceGroup(vnetRg.name)
+resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' existing = {
+  scope: resourceGroup(virtualNetworkResourceGroupName)
   name: virtualNetworkName
-}
-
-// API Management (shared instance)
-resource apim 'Microsoft.ApiManagement/service@2021-08-01' existing = {
-  scope: resourceGroup(apimRg.name)
-  name: apiManagementName
 }
 
 // App Gateway (shared instance)
 resource appGateway 'Microsoft.Network/applicationGateways@2021-05-01' existing = {
-  scope: resourceGroup(rg.name)
+  scope: resourceGroup(sharedResourceGroupName)
   name: appGatewayName
 }
 
-// App Service Environment (shared instance)
+// App Service Environment - deployed via CCP
 resource appServiceEnvironment 'Microsoft.Web/hostingEnvironments@2021-01-15' existing = {
-  scope: resourceGroup(rg.name)
+  scope: resourceGroup(sharedResourceGroupName)
   name: appServiceEnvironmentName
 }
 
-/*
+// Container registry - deployed via CCP
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2021-09-01' existing = {
+  scope: resourceGroup(sharedResourceGroupName)
+  name: containerRegistryName
+}
+
+/******************************************************************************
   New resources
 */
 
 // Deploy resource group
 module rg 'Microsoft.Resources/resourceGroups/deploy.bicep' = {
-  name: '${resourceGroupName}-rg'
+  name: resourceGroupName
   params: {
     name: resourceGroupName
     tags: resourceTags
@@ -131,14 +170,17 @@ module rg 'Microsoft.Resources/resourceGroups/deploy.bicep' = {
 }
 
 // Redis Cache
-module redisCache 'Microsoft.Cache/redis/deploy.bicep' = {
+module redis 'Microsoft.Cache/redis/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${redisCacheName}-redis'
+  name: redisCacheName
   params: {
-    existingSubnetName: ''
-    existingVirtualNetworkName: vnet.name
-    name: redisCacheName
+    environmentName: environmentName
+    redisName: redisCacheName
     workspaceResourceId: workspace.outputs.logAnalyticsResourceId
+    skuName: 'Premium'
+    skuCapacity: 1
+    storageAccountId: storage.outputs.storageAccountResourceId
+    subnetId: '${vnet.id}/subnets/sharedSubnet'
     tags: resourceTags
   }
 }
@@ -146,11 +188,34 @@ module redisCache 'Microsoft.Cache/redis/deploy.bicep' = {
 // Cosmos DB
 module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${cosmosDbName}-cosmosdb'
+  name: cosmosDbName
   params: {
     name: cosmosDbName
-    publicNetworkAccess: 'Disabled'
-    tags: resourceTags
+    databaseAccountOfferType: 'Standard'
+    locations: [
+      {
+        locationName: 'East US 2'
+        failoverPriority: 0
+        isZoneRedundant: false
+      }
+    ]
+    defaultConsistencyLevel: 'Session'
+    sqlDatabases: [
+      {
+        name: '${cosmosDbName}-sql-db'
+        containers: [
+          {
+            name: 'container-001'
+            paths: [
+              '/myPartitionKey'
+            ]
+            kind: 'Hash'
+          }
+        ]
+      }
+    ]
+    diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    workspaceId: workspace.outputs.logAnalyticsResourceId
   }
 }
 
@@ -159,25 +224,71 @@ module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep'
   scope: resourceGroup(rg.name)
   name: '${cosmosDbName}-private-endpoint'
   params: {
-    name: '${uniqueString(deployment().name)}-CosmosDb-PrivateEndpoint'
-    targetSubnetResourceId: ''
+    name: '${cosmosDbName}-private-endpoint'
+    targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
     groupId: [
       'sql'
     ]
-    serviceResourceId: cosmosDb.outputs.cosmosDbResourceId
+    serviceResourceId: cosmosDb.outputs.databaseAccountResourceId
     tags: resourceTags
   }
 }
 
-// Event Hub
-
+// APIM
+// module apim 'Microsoft.ApiManagement/service/deploy.bicep' = {
+//   scope: resourceGroup(apimResourceGroupName)
+//   name: apimName
+//   params: {
+//     name: apimName
+//     publisherEmail: apimPublisherEmail
+//     publisherName: apimPublisherName
+//     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+//     sku: apimSku
+//     skuCount: 1
+//     subnetResourceId: '${vnet.id}/subnets/ApiManagementSubnet'
+//     virtualNetworkType: 'External'
+//     diagnosticWorkspaceId: workspace.outputs.logAnalyticsResourceId
+//     keyVaultResourceId: keyVault.outputs.keyVaultResourceId
+//     apis: apimApis
+//     authorizationServers: apimAuthorizationServers
+//     backends: apimBackends
+//     caches: apimCaches
+//     policies: apimPolicies
+//     portalSettings: apimPortalSettings
+//     subscriptions: apimSubscriptions
+//     identityProviders: apimIdentityProviders
+//     namedValues: apimNamedValues
+//     products: apimProducts
+//     tags: resourceTags
+//   }
+// }
 
 // Deploy log analytics workspace
 module workspace 'Microsoft.OperationalInsights/workspaces/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${workspaceName}-workspace'
+  name: workspaceName
   params: {
     name: workspaceName
+    serviceTier: 'PerGB2018'
+    solutions: [
+      'Updates'
+      'AntiMalware'
+      'SQLAssessment'
+      'Security'
+      'SecurityCenterFree'
+      'ChangeTracking'
+      'KeyVaultAnalytics'
+      'AzureSQLAnalytics'
+      'ServiceMap'
+      'AgentHealthAssessment'
+      'AlertManagement'
+      'AzureActivity'
+      'AzureDataFactoryAnalytics'
+      'AzureNSGAnalytics'
+      'InfrastructureInsights'
+      'NetworkMonitoring'
+      'VMInsights'
+    ]
     tags: resourceTags
   }
 }
@@ -185,29 +296,32 @@ module workspace 'Microsoft.OperationalInsights/workspaces/deploy.bicep' = {
 // Deploy storage account
 module storage 'Microsoft.Storage/storageAccounts/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${storageAccountName}-storage'
+  name: storageAccountName
   params: {
     name: storageAccountName
     storageAccountKind: 'StorageV2'
+    storageAccountSku: 'Standard_LRS'
     vNetId: vnet.id
     networkAcls: {
+      virtualNetworkRules: []
       bypass: 'AzureServices'
       defaultAction: 'Deny'
       ipRules: []
     }
     workspaceId: workspace.outputs.logAnalyticsResourceId
     storageAccountAccessTier: 'Hot'
+    diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
     tags: resourceTags
   }
 }
 
-// Deploy storage prvivate endpoint
+// Deploy storage private endpoint
 module storagePrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
   scope: resourceGroup(rg.name)
   name: '${storageAccountName}-private-endpoint'
   params: {
-    name: '${uniqueString(deployment().name)}-Storage-PrivateEndpoint'
-    targetSubnetResourceId: ''
+    name: '${storageAccountName}-private-endpoint'
+    targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
     groupId: [
       'blob'
     ]
@@ -226,7 +340,7 @@ module keyVault 'Microsoft.KeyVault/vaults/deploy.bicep' = {
     enableVaultForDeployment: true
     enableVaultForTemplateDeployment: true
     enableVaultForDiskEncryption: false
-    softDeleteRetentionInDays: 1
+    softDeleteRetentionInDays: 7
     vaultSku: 'premium'
     networkAcls: {
       bypass: 'AzureServices'
@@ -240,13 +354,13 @@ module keyVault 'Microsoft.KeyVault/vaults/deploy.bicep' = {
   }
 }
 
-// Deploy key vault prvivate endpoint
+// Deploy key vault private endpoint
 module keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
   scope: resourceGroup(rg.name)
   name: '${keyVaultName}-private-endpoint'
   params: {
-    name: '${uniqueString(deployment().name)}-KeyVault-PrivateEndpoint'
-    targetSubnetResourceId: ''
+    name: '${keyVaultName}-private-endpoint'
+    targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
     groupId: [
       'vault'
     ]
@@ -258,7 +372,7 @@ module keyVaultPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep'
 // Deploy app insights
 module appInsights 'Microsoft.Insights/components/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${appInsightsName}-app-insights'
+  name: '${appInsightsName}-appins'
   params: {
     appInsightsWorkspaceResourceId: workspace.outputs.logAnalyticsResourceId
     name: appInsightsName
@@ -269,14 +383,12 @@ module appInsights 'Microsoft.Insights/components/deploy.bicep' = {
 // Deploy app service plan
 module appServicePlan 'Microsoft.Web/serverfarms/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${appServicePlanName}-app-service-plan'
+  name: appServicePlanName
   params: {
     name: appServicePlanName
-    skuName: 'I1'
-    skuFamily: ''
-    skuCapacity: 1
-    serverOS: 'Linux'
-    appServiceEnvironmentId: ''
+    skuName: 'I1V2'
+    skuTier: 'IsolatedV2'
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }
@@ -284,14 +396,15 @@ module appServicePlan 'Microsoft.Web/serverfarms/deploy.bicep' = {
 // Deploy web app for api portal
 module devPortalWebApp 'Microsoft.Web/sites/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: 'apiDevPortal'
+  name: '${namingPrefixHyphen}-api-portal-app'
   params: {
     kind: 'app'
-    name: '${namingPrefix}-api-portal-app'
+    name: '${namingPrefixHyphen}-api-portal-app'
     storageAccountId: storage.outputs.storageAccountResourceId
     appInsightId: appInsights.outputs.appInsightsResourceId
     appServicePlanId: appServicePlan.outputs.appServicePlanResourceId
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }
@@ -299,15 +412,16 @@ module devPortalWebApp 'Microsoft.Web/sites/deploy.bicep' = {
 // Deploy function app for vendor setup API
 module vendorSetupAPIFuncApp 'Microsoft.Web/sites/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: 'apiDevPortal'
+  name: '${namingPrefixHyphen}-vendor-setup-api-func'
   params: {
     kind: 'functionapp'
-    name: '${namingPrefix}-vendor-setup-api-func'
+    name: '${namingPrefixHyphen}-vendor-setup-api-func'
     storageAccountId: storage.outputs.storageAccountResourceId
     functionsWorkerRuntime: 'java'
     appInsightId: appInsights.outputs.appInsightsResourceId
     appServicePlanId: appServicePlan.outputs.appServicePlanResourceId
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }
@@ -315,14 +429,15 @@ module vendorSetupAPIFuncApp 'Microsoft.Web/sites/deploy.bicep' = {
 // Deploy web app for vendor setup UI
 module vendorSetupUIWebApp 'Microsoft.Web/sites/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: 'apiDevPortal'
+  name: '${namingPrefixHyphen}-vendor-setup-ui-app'
   params: {
     kind: 'app'
-    name: '${namingPrefix}-vendor-setup-ui-app'
+    name: '${namingPrefixHyphen}-vendor-setup-ui-app'
     storageAccountId: storage.outputs.storageAccountResourceId
     appInsightId: appInsights.outputs.appInsightsResourceId
     appServicePlanId: appServicePlan.outputs.appServicePlanResourceId
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }
@@ -330,14 +445,15 @@ module vendorSetupUIWebApp 'Microsoft.Web/sites/deploy.bicep' = {
 // Deploy web app for photo prints HTML checkout
 module photoPrintsWebApp 'Microsoft.Web/sites/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: 'apiDevPortal'
+  name: '${namingPrefixHyphen}-photo-prints-app'
   params: {
     kind: 'app'
-    name: '${namingPrefix}-photo-prints-app'
+    name: '${namingPrefixHyphen}-photo-prints-app'
     storageAccountId: storage.outputs.storageAccountResourceId
     appInsightId: appInsights.outputs.appInsightsResourceId
     appServicePlanId: appServicePlan.outputs.appServicePlanResourceId
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }
@@ -345,14 +461,15 @@ module photoPrintsWebApp 'Microsoft.Web/sites/deploy.bicep' = {
 // Deploy web app for RxTransfer/RxRefill HTML checkout
 module rxHTMLCheckoutWebApp 'Microsoft.Web/sites/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: 'apiDevPortal'
+  name: '${namingPrefixHyphen}-rx-checkout-app'
   params: {
     kind: 'app'
-    name: '${namingPrefix}-rx-checkout-app'
+    name: '${namingPrefixHyphen}-rx-checkout-app'
     storageAccountId: storage.outputs.storageAccountResourceId
     appInsightId: appInsights.outputs.appInsightsResourceId
     appServicePlanId: appServicePlan.outputs.appServicePlanResourceId
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    appServiceEnvironmentId: appServiceEnvironment.id
     tags: resourceTags
   }
 }

@@ -1,0 +1,458 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+	"contentVersion": "2.0.1.0",
+	"parameters": {
+		"injectedValues": {
+			"defaultValue": {},
+			"type": "object"
+		},
+		"tags": {
+			"type": "object",
+			"metadata": {
+				"description": "Resource tags.",
+				"subTypeDefinition": {}
+			}
+		},
+		"location": {
+			"type": "string",
+			"metadata": {
+				"description": "The geo-location where the resource lives"
+			}
+		},
+		"redisName": {
+			"type": "string",
+			"metadata": {
+				"description": "The name of the Redis cache."
+			}
+		},
+		"skuName": {
+			"type": "string",
+			"defaultValue": "Premium",
+			"allowedValues": [
+				"Basic",
+				"Standard",
+				"Premium"
+			],
+			"metadata": {
+				"description": "The type of Redis cache to deploy. Valid values: (Basic, Standard, Premium)"
+			}
+		},
+		"skuCapacity": {
+			"type": "int",
+			"minValue": 0,
+			"maxValue": 6,
+			"defaultValue": 1,
+			"metadata": {
+				"description": "The size of the Redis cache to deploy. Valid values: for C (Basic/Standard) family (0, 1, 2, 3, 4, 5, 6), for P (Premium) family (1, 2, 3, 4)."
+			}
+		},
+		"subnetId": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "The full resource ID of a subnet in a virtual network to deploy the Redis cache in. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.{Network|ClassicNetwork}/VirtualNetworks/vnet1/subnets/subnet1",
+				"subType": "regex",
+				"pattern": "^/subscriptions/[^/]*/resourceGroups/[^/]*/providers/Microsoft.(ClassicNetwork|Network)/virtualNetworks/[^/]*/subnets/[^/]*$"
+			}
+		},
+		"staticIP": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Static IP address. Required when deploying a Redis cache inside an existing Azure Virtual Network.",
+				"subType": "regex",
+				"pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+$"
+			}
+		},
+		"redisConfiguration": {
+			"type": "object",
+			"defaultValue": {},
+			"metadata": {
+				"description": "All Redis Settings. Few possible keys: rdb-backup-enabled,rdb-storage-connection-string,rdb-backup-frequency,maxmemory-delta,maxmemory-policy,notify-keyspace-events,maxmemory-samples,slowlog-log-slower-than,slowlog-max-len,list-max-ziplist-entries,list-max-ziplist-value,hash-max-ziplist-entries,hash-max-ziplist-value,set-max-intset-entries,zset-max-ziplist-entries,zset-max-ziplist-value etc.",
+				"subTypeDefinition": {}
+			}
+		},
+		"enableNonSslPort": {
+			"type": "bool",
+			"defaultValue": false,
+			"allowedValues": [
+				false
+			],
+			"metadata": {
+				"description": "Specifies whether the non-ssl Redis server port (6379) is enabled."
+			}
+		},
+		"replicasPerMaster": {
+			"type": "int",
+			"defaultValue": 0,
+			"metadata": {
+				"description": "The number of replicas to be created per master."
+			}
+		},
+		"tenantSettings": {
+			"type": "object",
+			"defaultValue": {},
+			"metadata": {
+				"description": "A dictionary of tenant settings",
+				"subTypeDefinition": {}
+			}
+		},
+		"shardCount": {
+			"type": "int",
+			"defaultValue": 0,
+			"metadata": {
+				"description": "The number of shards to be created on a Premium Cluster Cache."
+			}
+		},
+		"minimumTlsVersion": {
+			"type": "string",
+			"defaultValue": "1.2",
+			"allowedValues": [
+				"1.2"
+			],
+			"metadata": {
+				"description": "Optional: requires clients to use a specified TLS version (or higher) to connect (e,g, '1.0', '1.1', '1.2')"
+			}
+		},
+		"zones": {
+			"type": "array",
+			"defaultValue": [],
+			"allowedValues": ["1", "2", "3"],
+			"metadata": {
+				"description": "A list of availability zones denoting where the resource needs to come from.",
+				"subType": "string"
+			}
+		},
+		"enableGeoReplication": {
+			"type": "bool",
+			"defaultValue": false,
+			"metadata": {
+				"description": "Whether or not to create a secondary Redis Cache and link them for geo-replication. Only available with Premium Sku. If set to true, secondaryRedisName, and secondaryLocation must be set."
+			}
+		},
+		"secondaryRedisName": {
+			"type": "string",
+			"defaultValue": "[uniqueString(parameters('redisName'))]",
+			"metadata": {
+				"description": "The name of the linked server that is being added to the Redis cache."
+			}
+		},
+		"secondaryLocation": {
+			"type": "string",
+			"defaultValue": "[parameters('location')]",
+			"metadata": {
+				"description": "Location of the linked redis cache."
+			}
+		},
+		"secondarySubnetId": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "The full resource ID of a subnet in a virtual network to deploy the Redis cache in. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.{Network|ClassicNetwork}/VirtualNetworks/vnet1/subnets/subnet1",
+				"subType": "regex",
+				"pattern": "^/subscriptions/[^/]*/resourceGroups/[^/]*/providers/Microsoft.(ClassicNetwork|Network)/virtualNetworks/[^/]*/subnets/[^/]*$"
+			}
+		},
+		"secondaryStaticIP": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "Static IP address. Required when deploying a Redis cache inside an existing Azure Virtual Network.",
+				"subType": "regex",
+				"pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+$"
+			}
+		},
+		"dayOfWeek": {
+			"type": "string",
+			"defaultValue": "Sunday",
+			"allowedValues": [
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday",
+				"Saturday",
+				"Sunday",
+				"Everyday",
+				"Weekend"
+			],
+			"metadata": {
+				"description": "Day of the week when a cache can be patched."
+			}
+		},
+		"startHourUtc": {
+			"type": "int",
+			"minValue": 0,
+			"maxValue": 23,
+			"defaultValue": 2,
+			"metadata": {
+				"description": "Start hour after which cache patching can start."
+			}
+		},
+		"maintenanceWindow": {
+			"type": "string",
+			"defaultValue": "PT5H",
+			"metadata": {
+				"description": "ISO8601 timespan specifying how much time cache patching can take. "
+			}
+		},
+		"firewallRules": {
+			"type": "array",
+			"defaultValue": [],
+			"metadata": {
+				"subType": "object",
+				"subTypeDefinition": {
+					"firewallRuleName": {
+						"type": "string",
+						"metadata": {
+							"description": "The name of the firewall rule.",
+							"required": "yes"
+						}
+					},
+					"startIP": {
+						"type": "string",
+						"metadata": {
+							"description": "lowest IP address included in the range",
+							"required": "yes"
+						}
+					},
+					"endIP": {
+						"type": "string",
+						"metadata": {
+							"description": "highest IP address included in the range",
+							"required": "yes"
+						}
+					}
+				}
+			}
+		},
+		"storageAccountId": {
+			"type": "string",
+			"defaultValue": "",
+			"metadata": {
+				"description": "**This feature is not currently supported.** The full resource ID of a storage account to use for persistence with Redis cache. Example format: /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/Microsoft.Storage/storageAccounts/name",
+				"subType": "regex",
+				"pattern": "^/subscriptions/[^/]*/resourceGroups/[^/]*/providers/Microsoft.Storage/storageAccounts/[^/]*$"
+			}
+		}
+	},
+	"variables": {
+		"isPremium": "[equals(parameters('skuName'), 'Premium')]",
+		"isReplicated": "[and(variables('isPremium'), parameters('enableGeoReplication'))]",
+		"isProd": "[equals(parameters('injectedValues').envType, 'Production')]",
+		"isNonProd": "[not(variables('isProd'))]",
+		"datacenterIpAddresses": [
+			"63.73.199.0/24",
+			"63.239.17.0/24",
+			"204.15.116.0/22",
+			"209.65.11.0/24"
+		],
+		"prodIpAddresses": [
+			{
+				"firewallRuleName": "prod_centralus",
+				"startIP": "40.67.188.50",
+				"endIP": "40.67.188.50"
+			},
+			{
+				"firewallRuleName": "prod_eastus2",
+				"startIP": "52.177.84.230",
+				"endIP": "52.177.84.230"
+			},
+			{
+				"firewallRuleName": "prod_northeurope",
+				"startIP": "52.155.224.242",
+				"endIP": "52.155.224.242"
+			},
+			{
+				"firewallRuleName": "prod_westeurope",
+				"startIP": "51.105.163.210",
+				"endIP": "51.105.163.210"
+			},
+			{
+				"firewallRuleName": "prod_preleap",
+				"startIP": "20.36.252.188",
+				"endIP": "20.36.252.188"
+			}
+		],
+		"nprodIpAddresses": [
+			{
+				"firewallRuleName": "nprod_centralus",
+				"startIP": "52.230.220.128",
+				"endIP": "52.230.220.128"
+			},
+			{
+				"firewallRuleName": "nprod_eastus2",
+				"startIP": "40.65.233.76",
+				"endIP": "40.65.233.76"
+			},
+			{
+				"firewallRuleName": "nprod_northeurope",
+				"startIP": "52.155.224.148",
+				"endIP": "52.155.224.148"
+			},
+			{
+				"firewallRuleName": "nprod_westeurope",
+				"startIP": "51.105.144.11",
+				"endIP": "51.105.144.11"
+			},
+			{
+				"firewallRuleName": "nprod_legacy",
+				"startIP": "20.42.25.22",
+				"endIP": "20.42.25.22"
+			}
+		],
+		"defaultFirewallRule": {
+			"firewallRuleName": "DEFAULT",
+			"startIP": "0.0.0.0",
+			"endIP": "0.0.0.0"
+		},
+		"nprodFirewallRules": "[union(parameters('firewallRules'), variables('nprodIpAddresses'), variables('datacenterIpAddresses'))]",
+		"prodFirewallRules": "[if(empty(parameters('firewallRules')), array(variables('defaultFirewallRule')), union(parameters('firewallRules'), variables('prodIpAddresses'), variables('datacenterIpAddresses')))]",
+		"firewallRules": "[if(variables('isNonProd'), variables('nprodFirewallRules'), variables('prodFirewallRules'))]",
+		"storageAccountName": "[last(split(parameters('storageAccountId'), '/'))]",
+		"primaryStorageKey": "listKeys(parameters('storageAccountId'), '2016-01-01').keys[0].value",
+		"storageUri": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', variables('primaryStorageKey'))]",
+		"storageConfiguration": {
+			"rdb-backup-enabled": true,
+			"rdb-backup-frequency": "60",
+			"rdb-storage-connection-string": "[variables('storageUri')]"
+		},
+		"redisConfiguration": "[union(parameters('redisConfiguration'), variables('storageConfiguration'))]",
+		"secondaryRedisName": "[if(not(empty(parameters('secondaryRedisName'))), parameters('secondaryRedisName'), uniqueString(parameters('redisName')))]"
+	},
+	"resources": [
+		{
+			"type": "Microsoft.Cache/Redis",
+			"apiVersion": "2020-12-01",
+			"name": "[parameters('redisName')]",
+			"dependsOn": [],
+			"tags": "[parameters('tags')]",
+			"location": "[parameters('location')]",
+			"zones": "[if(not(empty(parameters('zones'))), parameters('zones'), json('null'))]",
+			"properties": {
+				"sku": {
+					"name": "[parameters('skuName')]",
+					"family": "[if(variables('isPremium'), 'P', 'C')]",
+					"capacity": "[parameters('skuCapacity')]"
+				},
+				"minimumTlsVersion": "[parameters('minimumTlsVersion')]",
+				"enableNonSslPort": "[parameters('enableNonSslPort')]",
+				"redisConfiguration": "[variables('redisConfiguration')]",
+				"replicasPerMaster": "[if(equals(parameters('replicasPerMaster'), 0), json('null'), parameters('replicasPerMaster'))]",
+				"tenantSettings": "[parameters('tenantSettings')]",
+				"subnetId": "[if(variables('isPremium'), parameters('subnetId'), json('null'))]",
+				"staticIP": "[if(variables('isPremium'), parameters('staticIP'), json('null'))]",
+				"shardCount": "[if(and(variables('isPremium'), greater(parameters('shardCount'), 0)), parameters('shardCount'), json('null'))]"
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis",
+			"apiVersion": "2020-12-01",
+			"name": "[variables('secondaryRedisName')]",
+			"condition": "[variables('isReplicated')]",
+			"dependsOn": [],
+			"tags": "[parameters('tags')]",
+			"location": "[parameters('secondaryLocation')]",
+			"zones": "[parameters('zones')]",
+			"properties": {
+				"sku": {
+					"name": "Premium",
+					"family": "P",
+					"capacity": "[parameters('skuCapacity')]"
+				},
+				"minimumTlsVersion": "[parameters('minimumTlsVersion')]",
+				"enableNonSslPort": "[parameters('enableNonSslPort')]",
+				"redisConfiguration": "[parameters('redisConfiguration')]",
+				"replicasPerMaster": "[if(equals(parameters('replicasPerMaster'), 0), json('null'), parameters('replicasPerMaster'))]",
+				"tenantSettings": "[parameters('tenantSettings')]",
+				"subnetId": "[parameters('secondarySubnetId')]",
+				"staticIP": "[parameters('secondaryStaticIP')]",
+				"shardCount": "[parameters('shardCount')]"
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis/linkedServers",
+			"apiVersion": "2020-12-01",
+			"name": "[concat(parameters('redisName'), '/', variables('secondaryRedisName'))]",
+			"condition": "[variables('isReplicated')]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Cache/Redis', parameters('redisName'))]",
+				"[resourceId('Microsoft.Cache/Redis', variables('secondaryRedisName'))]"
+			],
+			"properties": {
+				"linkedRedisCacheId": "[if(variables('isReplicated'), resourceId('Microsoft.Cache/Redis', variables('secondaryRedisName')), json('null'))]",
+				"linkedRedisCacheLocation": "[parameters('secondaryLocation')]",
+				"serverRole": "Secondary"
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis/patchSchedules",
+			"apiVersion": "2020-12-01",
+			"name": "[concat(parameters('redisName'), '/default')]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Cache/Redis', parameters('redisName'))]"
+			],
+			"properties": {
+				"scheduleEntries": [
+					{
+						"dayOfWeek": "[parameters('dayOfWeek')]",
+						"startHourUtc": "[parameters('startHourUtc')]",
+						"maintenanceWindow": "[parameters('maintenanceWindow')]"
+					}
+				]
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis/patchSchedules",
+			"apiVersion": "2020-12-01",
+			"name": "[concat(variables('secondaryRedisName'), '/default')]",
+			"condition": "[variables('isReplicated')]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Cache/Redis', variables('secondaryRedisName'))]"
+			],
+			"properties": {
+				"scheduleEntries": [
+					{
+						"dayOfWeek": "[parameters('dayOfWeek')]",
+						"startHourUtc": "[parameters('startHourUtc')]",
+						"maintenanceWindow": "[parameters('maintenanceWindow')]"
+					}
+				]
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis/firewallRules",
+			"apiVersion": "2020-12-01",
+			"name": "[concat(parameters('redisName'), '/', variables('firewallRules')[copyIndex()].firewallRuleName)]",
+			"condition": "[or(not(variables('isPremium')), not(empty(parameters('firewallRules'))))]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Cache/Redis', parameters('redisName'))]"
+			],
+			"properties": {
+				"startIP": "[variables('firewallRules')[copyIndex()].startIP]",
+				"endIP": "[variables('firewallRules')[copyIndex()].endIP]"
+			},
+			"copy": {
+				"name": "firewallRuleCopy",
+				"count": "[length(variables('firewallRules'))]"
+			}
+		},
+		{
+			"type": "Microsoft.Cache/Redis/firewallRules",
+			"apiVersion": "2020-12-01",
+			"name": "[concat(variables('secondaryRedisName'), '/', variables('firewallRules')[copyIndex()].firewallRuleName)]",
+			"condition": "[and(variables('isReplicated'), not(empty(parameters('firewallRules'))))]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Cache/Redis', variables('secondaryRedisName'))]"
+			],
+			"properties": {
+				"startIP": "[variables('firewallRules')[copyIndex()].startIP]",
+				"endIP": "[variables('firewallRules')[copyIndex()].endIP]"
+			},
+			"copy": {
+				"name": "firewallRuleCopy",
+				"count": "[length(variables('firewallRules'))]"
+			}
+		}
+	]
+}

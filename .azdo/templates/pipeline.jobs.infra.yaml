@@ -1,0 +1,58 @@
+parameters:
+  resourceGroupName: ''
+  environmentName: ''
+  region: ''
+  prefix: ''
+  vmImage: ''
+  serviceConnection: ''
+  validateDeploymentType: ''
+
+jobs:
+  - job: Deploy_Environment
+    displayName: 'Deploy Environment'
+    pool:
+      vmImage: "${{ parameters.vmImage }}"
+    steps:
+      - checkout: self
+
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download artifacts"
+        inputs:
+          buildType: "current"
+          downloadType: "single"
+          artifactName: "deployment"
+          downloadPath: "$(Build.ArtifactsDirectory)"
+
+      - task: AzurePowerShell@5
+        displayName: "Deploy Bicep template"
+        inputs:
+          azureSubscription: "$(serviceConnection)"
+          ScriptType: "InlineScript"
+          Inline: |
+            # load module
+            . $(baseWorkingDirectory)/internal/scripts/preimport.ps1
+
+            $paramArgs = @{}
+            if ('${{ parameters.validateDeploymentType }}' -eq 'validate') {
+              $paramArgs += @{
+                Validate = $true
+              }
+            } elseif ('${{ parameters.validateDeploymentType }}' -eq 'validateWhatIf') {
+                $paramArgs += @{
+                  ValidateWhatIf = $true
+                }
+              }
+            }
+
+            $paramArgs += @{
+              SubscriptionId          = "$(subscriptionId)"
+              DeploymentTemplate      = '$(System.DefaultWorkingDirectory)/bicep/modules/main.json'
+              ResourceGroupName       = "$(resourceGroupName)"
+              DeploymentScope         = "resourcegroup"
+              TemplateParameterObject = @{
+              }
+              Location              = "$(region)"
+            }
+
+            Invoke-ARMDeployment @paramArgs
+          azurePowerShellVersion: "LatestVersion"

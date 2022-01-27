@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "int"
+    },
+    "projectName": {
+      "value": "eotech"
+    },
+    "containerRegistryName": {
+      "value": "rpunprodeotechacr01"
+    },
+    "tags": {
+      "value": {
+        "DeptName": "Innovation",
+        "LOB": "Innovation",
+        "DeployDate": "01-07-2022",
+        "Deployer": "Rudi Landolt",
+        "CostCenter": "IT Innovation 5001",
+        "CostCode": "1000608610",
+        "LegalSubEntity": "Walgreen Co",
+        "Sensitivity": "Non-Sensitive",
+        "SubDivision": "Innovation",
+        "Department": "Innovation",
+        "SenType": "Not Applicable"
+      }
+    },
+    "sharedResourceGroupName": {
+      "value": "rpu-nprod-eotech-eastus2-rg-01"
+    },
+    "diagnosticLogsRetentionInDays": {
+      "value": 90
+    }
+  }
+}

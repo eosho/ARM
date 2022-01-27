@@ -1,0 +1,151 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "2.2.0.0",
+  "parameters": {
+    "tags": {
+      "value": {
+        "LegalSubEntity": "",
+        "SubDivision": "",
+        "Department": "",
+        "CostCenter": "",
+        "EnvType": "",
+        "Sensitivity": "",
+        "SenType": ""
+      },
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.tags%60"
+      }
+    },
+    "location": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.location%60"
+      }
+    },
+    "hostingEnvironmentName": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.hostingenvironmentname%60"
+      }
+    },
+    "kind": {
+      "value": "ASEV2",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.kind%60"
+      }
+    },
+    "multiSize": {
+      "value": "Small",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.multisize%60"
+      }
+    },
+    "multiRoleCount": {
+      "value": 2,
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.multirolecount%60"
+      }
+    },
+    "frontEndScaleFactor": {
+      "value": 5,
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.frontendscalefactor%60"
+      }
+    },
+    "hasLinuxWorkers": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.haslinuxworkers%60"
+      }
+    },
+    "dnsSuffix": {
+      "value": "",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.dnssuffix%60"
+      }
+    },
+    "clusterSettings": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.clustersettings%60"
+      }
+    },
+    "workerPools": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.workerpools%60"
+      }
+    },
+    "ipsslAddressCount": {
+      "value": 0,
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.ipssladdresscount%60"
+      }
+    },
+    "userWhitelistedIpRanges": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.userwhitelistedipranges%60"
+      }
+    },
+    "subnetId": {
+      "value": "",
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.subnetid%60"
+      }
+    },
+    "networkAccessControlList": {
+      "value": [],
+      "metadata": {
+        "description": "[REQUIRED] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.networkaccesscontrollist%60"
+      }
+    },
+    "internalLoadBalancingMode": {
+      "value": "Web",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.internalloadbalancingmode%60"
+      }
+    },
+    "suspended": {
+      "value": false,
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.suspended%60"
+      }
+    },
+    "sslCertKeyVaultId": {
+      "value": "",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.sslcertkeyvaultid%60"
+      }
+    },
+    "sslCertKeyVaultSecretName": {
+      "value": "",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.sslcertkeyvaultsecretname%60"
+      }
+    },
+    "apiManagementAccountId": {
+      "value": "",
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.apimanagementaccountid%60"
+      }
+    },
+    "zones": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.zones%60"
+      }
+    },
+    "roleAssignments": {
+      "value": [],
+      "metadata": {
+        "description": "[OPTIONAL] https://dev.azure.com/WBA/IT%20Services/_git/ccp-ent-infra-build?path=%2Flibrary%2Fprod%2Fapp-service-environment%2FPARAMETERS.md&_a=preview&version=GBmaster&anchor=%60parameters.roleassignments%60"
+      }
+    }
+  },
+  "deploymentParameters": {
+    "resourceGroup": "",
+    "subscription": "",
+    "templateFile": ".\\library\\prod\\app-service-environment\\app-service-environment-template.json"
+  }
+}

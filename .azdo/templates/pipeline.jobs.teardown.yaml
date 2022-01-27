@@ -1,12 +1,15 @@
 parameters:
-  scope: ''
+  vmImage: ''
   serviceConnection: ''
   subscriptionId: ''
   resourceGroupName: ''
+  environmentName: ''
 
 jobs:
 - job: Teardown
-  displayName: Teardown environment
+  displayName: Teardown ${{ parameters.environmentName }}
+  pool:
+    vmImage: "${{ parameters.vmImage }}"
   steps:
   - checkout: self
   - task: AzurePowerShell@5
@@ -16,4 +19,4 @@ jobs:
       azurePowerShellVersion: 'Latest'
       ScriptType: 'InlineScript'
       Inline: |
-        Invoke-ARMDeployment -Scope $(Scope) -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment
+        Invoke-ARMDeployment -Scope "resourcegroup" -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment

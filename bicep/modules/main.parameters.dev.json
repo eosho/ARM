@@ -1,0 +1,181 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "dev"
+    },
+    "projectName": {
+      "value": "cust-wap"
+    },
+    "tags": {
+      "value": {
+        "DeptName": "Innovation",
+        "LOB": "Innovation",
+        "DeployDate": "01-07-2022",
+        "Deployer": "Rudi Landolt",
+        "CostCenter": "IT Innovation 5001",
+        "CostCode": "1000608610",
+        "LegalSubEntity": "Walgreen Co",
+        "Sensitivity": "Non-Sensitive",
+        "SubDivision": "Innovation",
+        "Department": "Innovation",
+        "SenType": "Not Applicable"
+      }
+    },
+    "resourceGroupName": {
+      "value": "core-rg"
+    },
+    "virtualNetworkName": {
+      "value": "nprod-eotech-vnet-01"
+    },
+    "virtualNetworkResourceGroupName": {
+      "value": "rpu-nprod-eotech-eastus2-rg-01"
+    },
+    "apimResourceGroupName": {
+      "value": "core-rg"
+    },
+    "apimSku": {
+      "value": "Developer"
+    },
+    "apimAuthorizationServers": {
+      "value": [
+        {
+          "name": "AuthServer1",
+          "authorizationEndpoint": "https://login.microsoftonline.com/651b43ce-ccb8-4301-b551-b04dd872d401/oauth2/v2.0/authorize",
+          "grantTypes": [
+            "authorizationCode"
+          ],
+          "clientCredentialsKeyVaultId": "/subscriptions/<<subscriptionId>>/resourceGroups/validation-rg/providers/Microsoft.KeyVault/vaults/adp-sxx-az-kv-x-001",
+          "clientIdSecretName": "apimclientid",
+          "clientSecretSecretName": "apimclientsecret",
+          "clientRegistrationEndpoint": "http://localhost",
+          "tokenEndpoint": "https://login.microsoftonline.com/651b43ce-ccb8-4301-b551-b04dd872d401/oauth2/v2.0/token"
+        }
+      ]
+    },
+    "apimBackends": {
+      "value": [
+        {
+          "name": "backend",
+          "url": "http://echoapi.cloudapp.net/api",
+          "tls": {
+            "validateCertificateChain": false,
+            "validateCertificateName": false
+          }
+        }
+      ]
+    },
+    "apimCaches": {
+      "value": [
+        {
+          "name": "eastus2",
+          "connectionString": "connectionstringtest",
+          "useFromLocation": "eastus2"
+        }
+      ]
+    },
+    "apimApis": {
+      "value": [
+        {
+          "name": "echo-api",
+          "displayName": "Echo API",
+          "path": "echo",
+          "serviceUrl": "http://echoapi.cloudapp.net/api",
+          "apiVersionSet": {
+            "name": "echo-version-set",
+            "properties": {
+              "description": "echo-version-set",
+              "displayName": "echo-version-set",
+              "versioningScheme": "Segment"
+            }
+          },
+          "isCurrent": true
+        }
+      ]
+    },
+    "apimPolicies": {
+      "value": [
+        {
+          "value": "<policies> <inbound> <rate-limit-by-key calls='250' renewal-period='60' counter-key='@(context.Request.IpAddress)' /> </inbound> <backend> <forward-request /> </backend> <outbound> </outbound> </policies>",
+          "format": "xml"
+        }
+      ]
+    },
+    "apimProducts": {
+      "value": [
+        {
+          "name": "Starter",
+          "subscriptionRequired": false,
+          "approvalRequired": false,
+          "apis": [
+            {
+              "name": "echo-api"
+            }
+          ],
+          "groups": [
+            {
+              "name": "developers"
+            }
+          ]
+        }
+      ]
+    },
+    "apimSubscriptions": {
+      "value": [
+        {
+          "scope": "/apis",
+          "name": "testArmSubscriptionAllApis"
+        }
+      ]
+    },
+    "identityProviders": {
+      "value": [
+        {
+          "name": "aadProvider"
+        }
+      ]
+    },
+    "apimNamedValues": {
+      "value": [
+        {
+          "name": "apimkey",
+          "displayName": "apimkey",
+          "secret": true
+        }
+      ]
+    },
+    "apimPortalSettings": {
+      "value": [
+        {
+          "name": "signin",
+          "properties": {
+            "enabled": false
+          }
+        },
+        {
+          "name": "signup",
+          "properties": {
+            "enabled": false,
+            "termsOfService": {
+              "enabled": false,
+              "consentRequired": false
+            }
+          }
+        }
+      ]
+    },
+    "sharedResourceGroupName": {
+      "value": "rpu-nprod-digital-eastus2-ase-02-rg"
+    },
+    "appServiceEnvironmentName": {
+      "value": "rpu-nprod-innov-eti-eastus2-asev3-01"
+    },
+    "appServicePlanName": {
+      "value": "nprod-innov-eti-mvp-asp-01"
+    },
+    "diagnosticLogsRetentionInDays": {
+      "value": 90
+    }
+  }
+}

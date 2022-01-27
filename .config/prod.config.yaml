@@ -1,0 +1,21 @@
+# Environment specific variables
+
+variables:
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/master') }}:
+    - name: serviceConnection
+      value:
+
+    - name: environmentName
+      value: prod
+
+    - name: subscriptionId
+      value:
+
+    - name: subscriptionName
+      value:
+
+    - name: location
+      value: eastus2
+
+    - name: resourceGroupName
+      value: 

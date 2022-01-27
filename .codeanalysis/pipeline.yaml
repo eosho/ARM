@@ -1,0 +1,150 @@
+parameters:
+- name: pesterScenarios
+  type: object
+  default:
+  - common
+  - integration
+  - qa
+
+- name: serviceConnection
+  type: string
+  default: azureInternal
+
+trigger:
+  batch: true
+  branches:
+    include:
+    - '*'
+  paths:
+    exclude:
+    - README.md
+    - .azdo/*
+    - .config/*
+    - docs/*
+
+jobs:
+  - job: QA_Tests_Analysis
+    displayName: 'QA Tests - Code Analysis'
+    pool:
+      vmImage: "ubuntu-latest"
+    steps:
+    - task: Bash@3
+      displayName: 'Install bicep CLI'
+      inputs:
+        targetType: 'inline'
+        script: |
+          az bicep install
+
+    - pwsh: |
+        cd $(System.DefaultWorkingDirectory)
+        git clone https://github.com/Azure/arm-ttk.git
+      displayName: 'Download ARM-TTK'
+
+    - pwsh: |
+        # only test files under deployments root directory
+        $bicepDirectory = "$(System.DefaultWorkingDirectory)/bicep"
+        $bicepFiles = Get-ChildItem -Path $bicepDirectory -Recurse -File -Filter *.bicep* -Exclude 'main.bicep'
+        $bicepFiles = $bicepFiles.Where{ $_.Length -ne 0 }
+
+        # convert all bicep files to arm template (JSON)
+        foreach ($bicepFile in $bicepFiles.FullName) {
+          Write-Verbose "Building bicep file - $bicepFile" -Verbose
+          az bicep build --file "$bicepFile"
+        }
+      displayName: 'Build bicep files'
+
+    - pwsh: |
+        Import-Module $(System.DefaultWorkingDirectory)/arm-ttk/arm-ttk/arm-ttk.psd1 -Force
+        Import-Module $(baseWorkingDirectory)/tests/helpers/HelperFunctions.psm1 -Force
+
+        $templates = Get-ChildItem '$(System.DefaultWorkingDirectory)/bicep' -File -Filter '*.json' -Recurse -Exclude '*.parameters.*.json','main.json' | Where-Object { ($_ | Get-Content) -match 'schema.management.azure.com' }
+
+        foreach ($template in $templates) {
+          Write-Output "Processing file: $($template.FullName)"
+          $results = Test-AzTemplate -TemplatePath $template.FullName -Test deploymentTemplate -ErrorAction Continue
+
+          # print result
+          $results
+
+          Export-NUnitXml -TestResults $results -Path $(System.DefaultWorkingDirectory)
+        }
+      displayName: 'Run ARM TTK tests'
+      condition: always()
+
+    - task: PublishTestResults@2
+      displayName: 'Publish ARMTTK test results'
+      condition: always()
+      inputs:
+        testRunTitle: ARM TTK - Test Result
+        testResultsFormat: NUnit
+        testResultsFiles: '$(System.DefaultWorkingDirectory)/*-armttk.xml'
+        mergeTestResults: true
+        failTaskOnFailedTests: true
+
+    - ${{ each scenario in parameters.pesterScenarios }}:
+        - task: AzurePowerShell@5
+          displayName: Invoke [${{ scenario }}] Pester tests
+          condition: succeededOrFailed()
+          inputs:
+            azureSubscription: '$(serviceConnection)'
+            ScriptType: 'InlineScript'
+            Inline: |
+              # Invoke Pester tests
+              Install-Module Pester -Force -ErrorAction Stop -Scope CurrentUser
+
+              Invoke-Pester -Configuration @{
+                Run        = @{
+                  Path = "$(baseWorkingDirectory)/tests/${{ scenario }}.Tests.ps1"
+                }
+                TestResult = @{
+                  TestSuiteName = 'Solution Tests'
+                  OutputPath    = '$(baseWorkingDirectory)/${{ scenario }}-testResults.xml'
+                  OutputFormat  = 'NUnitXml'
+                  Enabled       = $true
+                }
+                Output     = @{
+                  Verbosity = 'Detailed'
+                }
+              }
+            azurePowerShellVersion: 'LatestVersion'
+
+        - task: PublishTestResults@2
+          displayName: Publish [${{ scenario }}] Pester test results
+          condition: succeededOrFailed()
+          inputs:
+            testRunTitle: 'Pester ${{ scenario }} test results'
+            testResultsFormat: 'NUnit'
+            testResultsFiles: '${{ scenario }}-testResults.xml'
+            mergeTestResults: true
+            failTaskOnFailedTests: true
+            continueOnError: false
+            condition: succeededOrFailed()
+
+    - pwsh: |
+        Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+      displayName: 'Install PSScriptAnalyzer'
+
+    - script: docker pull github/super-linter:latest
+      displayName: 'Pull Github Super-Linter image'
+
+    - script: >-
+        docker run \
+          -e RUN_LOCAL=true \
+          -e VALIDATE_POWERSHELL=true \
+          -e VALIDATE_ARM=true \
+          -v $(System.DefaultWorkingDirectory):/tmp/lint \
+          github/super-linter
+      displayName: 'Code Scan via Github Super-Linter'
+
+    - task: CopyFiles@2
+      displayName: 'Stage deployment files'
+      inputs:
+        SourcesFolder:
+        Contents: |
+          **/deployments/**
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifacts'
+      inputs:
+        artifactName: 'drop'

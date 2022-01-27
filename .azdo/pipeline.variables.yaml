@@ -4,30 +4,33 @@ variables:
 - name: vmImage
   value: Ubuntu-latest
 
-- name: projectName
-  value: ARM
-
 - name: version
   value: 1.0.0
 
 - name: projectName
   value: cust-wap
 
+- name: baseWorkingDirectory
+  value: $(System.DefaultWorkingDirectory)/src/ARM
+
+- name: bicepDirectory
+  value: $(System.DefaultWorkingDirectory)/bicep/modules
+
 - name: artifactsLocation
   value: $(Build.SourcesDirectory)/artifacts
 
 - name: resourceProviders
-  value: [
+  value: '[
     "Microsoft.Resources",
     "Microsoft.Compute",
     "Microsoft.Network",
     "Microsoft.Storage"
-  ]
+  ]'
 
 - name: resourceProviderFeatures
-  value: [
+  value: '[
     {
       "featureName": "AIWorkspacePreview",
       "providerNamespace": "Microsoft.Insights"
     }
-  ]
+  ]'

@@ -7,13 +7,6 @@ param name string
 param location string = resourceGroup().location
 
 @metadata({
-  description: 'Current number of instances assigned to the resource.'
-})
-@minValue(0)
-@maxValue(100)
-param skuCapacity int = 1
-
-@metadata({
   description: 'Name of the resource SKU.'
   required: 'no'
 })
@@ -36,24 +29,9 @@ param skuCapacity int = 1
   'EP1'
   'EP2'
   'EP3'
+  'I1V2'
 ])
 param skuName string
-
-@metadata({
-  description: 'Family code of the resource SKU.'
-})
-@allowed([
-  ''
-])
-param skuFamily string = ''
-
-@metadata({
-  description: 'Size specifier of the resource SKU.'
-})
-@allowed([
-  ''
-])
-param skuSize string = ''
 
 @description('Optional. Kind of server OS.')
 @allowed([
@@ -88,13 +66,9 @@ param targetWorkerSize int = 0
 @description('Optional. Tags of the resource.')
 param tags object = {}
 
-var skuTiers = {
-  S: 'Standard'
-  P: 'Premium'
-  E: 'ElasticPremium'
-  I: 'Isolated'
-}
-var skuTier = '${skuTiers[first(skuName)]}${(contains(skuName, 'V2') ? 'V2' : '')}'
+@description('App service plan sku.')
+param skuTier string = 'IsolatedV2'
+
 var hostingEnvironmentProfile = {
   id: appServiceEnvironmentId
 }
@@ -107,9 +81,6 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2021-02-01' = {
   sku: {
     name: skuName
     tier: skuTier
-    capacity: skuCapacity
-    size: skuSize
-    family: skuFamily
   }
   properties: {
     workerTierName: workerTierName
