@@ -31,16 +31,16 @@ jobs:
       vmImage: $(vmImage)
     steps:
     - task: Bash@3
-      displayName: 'Build ARM Template from bicep file'
+      displayName: 'Build ARM Template'
       inputs:
         targetType: 'inline'
         script: |
-          az bicep build --file '$(bicepDirectory)/main.bicep'
+          az bicep build --file '$(System.DefaultWorkingDirectory)/bicep/modules/main.bicep'
 
     - task: CopyFiles@2
       displayName: Copy build artifacts
       inputs:
-        sourceFolder: '$(bicepDirectory)'
+        sourceFolder: '$(System.DefaultWorkingDirectory)/bicep/modules'
         contents: '*.json'
         targetFolder: '$(Build.ArtifactStagingDirectory)'
 

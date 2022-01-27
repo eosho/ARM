@@ -9,12 +9,12 @@ parameters:
 
 jobs:
 - job: InvokeCCP
-  displayName: $(displayName)
+  displayName: InvokeCCP
   steps:
   - checkout: self
 
   - task: AzurePowerShell@5
-    displayName: $(displayName)
+    displayName: 'Deploy'
     inputs:
       azureSubscription: '$(serviceConnection)'
       ScriptType: 'FilePath'
