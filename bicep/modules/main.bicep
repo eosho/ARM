@@ -186,53 +186,53 @@ module redis 'Microsoft.Cache/redis/deploy.bicep' = {
 }
 
 // Cosmos DB
-module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
-  scope: resourceGroup(rg.name)
-  name: cosmosDbName
-  params: {
-    name: cosmosDbName
-    databaseAccountOfferType: 'Standard'
-    locations: [
-      {
-        locationName: 'East US 2'
-        failoverPriority: 0
-        isZoneRedundant: false
-      }
-    ]
-    defaultConsistencyLevel: 'Session'
-    sqlDatabases: [
-      {
-        name: '${cosmosDbName}-sql-db'
-        containers: [
-          {
-            name: 'container-001'
-            paths: [
-              '/myPartitionKey'
-            ]
-            kind: 'Hash'
-          }
-        ]
-      }
-    ]
-    diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
-    workspaceId: workspace.outputs.logAnalyticsResourceId
-  }
-}
+// module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
+//   scope: resourceGroup(rg.name)
+//   name: cosmosDbName
+//   params: {
+//     name: cosmosDbName
+//     databaseAccountOfferType: 'Standard'
+//     locations: [
+//       {
+//         locationName: 'East US 2'
+//         failoverPriority: 0
+//         isZoneRedundant: false
+//       }
+//     ]
+//     defaultConsistencyLevel: 'Session'
+//     sqlDatabases: [
+//       {
+//         name: '${cosmosDbName}-sql-db'
+//         containers: [
+//           {
+//             name: 'container-001'
+//             paths: [
+//               '/myPartitionKey'
+//             ]
+//             kind: 'Hash'
+//           }
+//         ]
+//       }
+//     ]
+//     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+//     workspaceId: workspace.outputs.logAnalyticsResourceId
+//   }
+// }
 
 // Deploy Cosmos DB prvivate endpoint
-module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
-  scope: resourceGroup(rg.name)
-  name: '${cosmosDbName}-private-endpoint'
-  params: {
-    name: '${cosmosDbName}-private-endpoint'
-    targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
-    groupId: [
-      'sql'
-    ]
-    serviceResourceId: cosmosDb.outputs.databaseAccountResourceId
-    tags: resourceTags
-  }
-}
+// module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
+//   scope: resourceGroup(rg.name)
+//   name: '${cosmosDbName}-private-endpoint'
+//   params: {
+//     name: '${cosmosDbName}-private-endpoint'
+//     targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
+//     groupId: [
+//       'sql'
+//     ]
+//     serviceResourceId: cosmosDb.outputs.databaseAccountResourceId
+//     tags: resourceTags
+//   }
+// }
 
 // APIM
 module apim 'Microsoft.ApiManagement/service/deploy.bicep' = {
