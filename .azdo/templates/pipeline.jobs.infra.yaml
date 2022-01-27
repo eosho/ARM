@@ -47,7 +47,7 @@ jobs:
               Scope                     = "subscription"
               SubscriptionId            = "$(subscriptionId)"
               TemplateFilePath          = '$(Build.ArtifactsDirectory)/deployment/main.json'
-              TemplateParameterFilePath = "($templateParameterFilePath)"
+              TemplateParameterFilePath = "$(templateParameterFilePath)"
               Location                  = "$(location)"
             }
 
