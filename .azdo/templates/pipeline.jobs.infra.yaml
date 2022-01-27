@@ -48,8 +48,7 @@ jobs:
             $deploymentArgs += @{
               Scope                     = "subscription"
               SubscriptionId            = "$(subscriptionId)"
-              DeploymentTemplate        = "$(bicepDirectory)/main.json"
-              ResourceGroupName         = "$(resourceGroupName)"
+              TemplateFilePath          = "$(bicepDirectory)/main.json"
               TemplateParameterFilePath = "$(bicepDirectory)/main.parameters.${{ parameters.environmentName }}.json"
               Location                  = "$(location)"
             }
