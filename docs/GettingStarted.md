@@ -12,7 +12,7 @@ Install-Module -Name Az -AllowClobber -Scope CurrentUser
 No matter from where you start you have to account for some general prerequisites when it comes to bicep and this repository.
 To ensure you can use all the content in this repository you'd want to install
 
-- The latest PowerShell version [PowerShell 7][https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.2]
+- The latest PowerShell version [PowerShell 7](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.2)
 
   ```PowerShell
   # Windows one-liner
@@ -22,13 +22,13 @@ To ensure you can use all the content in this repository you'd want to install
   wget https://aka.ms/install-powershell.sh; sudo bash install-powershell.sh; rm install-powershell.sh
   ```
 
-- The [Azure Az Module][https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-7.1.0] / or at least modules such as `Az.Accounts` & `Az.Resources`
+- The [Azure Az Module](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-7.1.0) / or at least modules such as `Az.Accounts` & `Az.Resources`
 
   ```PowerShell
   Install-Module -Name Az -Scope CurrentUser -Repository PSGallery -Force
   ```
 
-- The [Azure CLI][https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli]
+- The [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli)
 
   ```PowerShell
   # Windows one-liner
@@ -38,13 +38,13 @@ To ensure you can use all the content in this repository you'd want to install
   curl -L https://aka.ms/InstallAzureCli | bash
   ```
 
-- And of course [Bicep][https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep]
+- And of course [Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep)
 
   ```PowerShell
   az bicep install
   ```
 
-- The latest Pester version [Pester 5.3+][https://www.powershellgallery.com/packages/Pester/5.3.1]
+- The latest Pester version [Pester 5.3+](https://www.powershellgallery.com/packages/Pester/5.3.1)
 
   ```PowerShell
   # One-liner
