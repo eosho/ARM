@@ -186,53 +186,76 @@ module redis 'Microsoft.Cache/redis/deploy.bicep' = {
 }
 
 // Cosmos DB
-// module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
-//   scope: resourceGroup(rg.name)
-//   name: cosmosDbName
-//   params: {
-//     name: cosmosDbName
-//     databaseAccountOfferType: 'Standard'
-//     locations: [
-//       {
-//         locationName: 'East US 2'
-//         failoverPriority: 0
-//         isZoneRedundant: false
-//       }
-//     ]
-//     defaultConsistencyLevel: 'Session'
-//     sqlDatabases: [
-//       {
-//         name: '${cosmosDbName}-sql-db'
-//         containers: [
-//           {
-//             name: 'container-001'
-//             paths: [
-//               '/myPartitionKey'
-//             ]
-//             kind: 'Hash'
-//           }
-//         ]
-//       }
-//     ]
-//     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
-//     workspaceId: workspace.outputs.logAnalyticsResourceId
-//   }
-// }
+module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: cosmosDbName
+  params: {
+    name: cosmosDbName
+    databaseAccountOfferType: 'Standard'
+    locations: [
+      {
+        locationName: 'East US 2'
+        failoverPriority: 0
+        isZoneRedundant: false
+      }
+    ]
+    defaultConsistencyLevel: 'Session'
+    sqlDatabases: [
+      {
+        name: '${cosmosDbName}-sql-db'
+        containers: [
+          {
+            name: 'container-001'
+            paths: [
+              '/myPartitionKey'
+            ]
+            kind: 'Hash'
+          }
+        ]
+      }
+    ]
+    diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    workspaceId: workspace.outputs.logAnalyticsResourceId
+  }
+}
 
-// Deploy Cosmos DB prvivate endpoint
-// module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
-//   scope: resourceGroup(rg.name)
-//   name: '${cosmosDbName}-private-endpoint'
-//   params: {
-//     name: '${cosmosDbName}-private-endpoint'
-//     targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
-//     groupId: [
-//       'sql'
-//     ]
-//     serviceResourceId: cosmosDb.outputs.databaseAccountResourceId
-//     tags: resourceTags
-//   }
-// }
+// Deploy Cosmos DB private DNS zone
+module cosmosDbPrivateDNSZone 'Microsoft.Network/privateDnsZones/deploy.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${cosmosDbName}-private-dns-zone'
+  params: {
+    name: 'privatelink.documents.azure.com'
+    virtualNetworkLinks: [
+      {
+        virtualNetworkResourceId: vnet.id
+        registrationEnabled: true
+      }
+    ]
+    tags: resourceTags
+  }
+}
+
+// Deploy Cosmos DB private endpoint
+module cosmosDbPrivateEndpoint 'Microsoft.Network/privateEndpoints/deploy.bicep' = {
+  scope: resourceGroup(rg.name)
+  name: '${cosmosDbName}-private-endpoint'
+  params: {
+    name: '${cosmosDbName}-private-endpoint'
+    targetSubnetResourceId: '${vnet.id}/subnets/sharedSubnet'
+    groupId: [
+      'sql'
+    ]
+    serviceResourceId: cosmosDb.outputs.databaseAccountResourceId
+    privateDnsZoneGroups: [
+      {
+        privateDNSResourceIds: [
+          cosmosDbPrivateDNSZone.outputs.privateDnsZoneResourceId
+        ]
+      }
+    ]
+    tags: resourceTags
+  }
+}
 
 // APIM
 module apim 'Microsoft.ApiManagement/service/deploy.bicep' = {
@@ -298,19 +321,19 @@ module storage 'Microsoft.Storage/storageAccounts/deploy.bicep' = {
   scope: resourceGroup(rg.name)
   name: storageAccountName
   params: {
+    environmentName: environmentName
     name: storageAccountName
-    storageAccountKind: 'StorageV2'
-    storageAccountSku: 'Standard_LRS'
-    vNetId: vnet.id
-    networkAcls: {
-      virtualNetworkRules: []
-      bypass: 'AzureServices'
-      defaultAction: 'Deny'
-      ipRules: []
-    }
-    workspaceId: workspace.outputs.logAnalyticsResourceId
-    storageAccountAccessTier: 'Hot'
+    kind: 'StorageV2'
+    skuName: 'Standard_LRS'
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    allowedVirtualNetworks: [
+      '${vnet.id}/subnets/sharedSubnet'
+    ]
+    routingPreference: 'MicrosoftRouting'
+    minimumTlsVersion: 'TLS1_2'
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
+    diagnosticWorkspaceId: workspace.outputs.logAnalyticsResourceId
     tags: resourceTags
   }
 }
@@ -335,19 +358,19 @@ module keyVault 'Microsoft.KeyVault/vaults/deploy.bicep' = {
   scope: resourceGroup(rg.name)
   name: '${keyVaultName}-keyvault'
   params: {
+    environmentName: environmentName
     name: keyVaultName
+    tenantId: subscription().tenantId
+    skuName: 'premium'
     accessPolicies: []
-    enableVaultForDeployment: true
-    enableVaultForTemplateDeployment: true
-    enableVaultForDiskEncryption: false
+    enabledForTemplateDeployment: true
+    enabledForDiskEncryption: false
+    enabledForDeployment: true
     softDeleteRetentionInDays: 7
-    vaultSku: 'premium'
-    networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: 'Deny'
-      ipRules: []
-    }
-    vNetId: vnet.id
+    allowedVirtualNetworks: [
+      '${vnet.id}/subnets/sharedSubnet'
+    ]
+    allowedIpAddresses: []
     diagnosticLogsRetentionInDays: diagnosticLogsRetentionInDays
     workspaceId: workspace.outputs.logAnalyticsResourceId
     tags: resourceTags

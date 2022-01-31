@@ -14,7 +14,7 @@ if ( $qaResult.FailedCount -gt 0 ) {
 }
 
 Write-Host -Object "Running Common tests"
-$commonResult = Invoke-Pester -Script ./src/ARM/tests/common/PSScriptAnalyzer.Tests.ps1 -Show Describe, Failed -PassThru
+$commonResult = Invoke-Pester -Script ./src/ARM/tests/common/Common.Tests.ps1 -Show Describe, Failed -PassThru
 if ( $commonResult.FailedCount -gt 0 ) {
   Write-Error -Message 'PSScriptAnalyzer test errors were found' -ErrorAction Stop
 }

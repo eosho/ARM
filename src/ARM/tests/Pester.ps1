@@ -10,7 +10,7 @@ param (
 
   $Include = "*",
 
-  $Exclude = @("Help.Tests.ps1", "PSScriptAnalyzer.Tests.ps1")
+  $Exclude = @("Help.Tests.ps1", "Common.Tests.ps1")
 )
 
 Write-PSFMessage -Level Important -Message "Starting Tests"
