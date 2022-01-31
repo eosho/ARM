@@ -19,6 +19,7 @@ jobs:
       azurePowerShellVersion: 'Latest'
       ScriptType: 'InlineScript'
       Inline: |
-        . $(baseWorkingDirectory)/tests/Pester.ps1
+        # load module
+        . $(baseWorkingDirectory)/internal/scripts/preimport.ps1 && . $(baseWorkingDirectory)/tests/Pester.ps1
 
-        Invoke-ARMDeployment -Scope "subscription" -ResourceGroupName $(resourceGroupName) -SubscriptionId $(subscriptionId) -TeardownEnvironment
+        Invoke-ARMDeployment -Scope "subscription" -ResourceGroupName ${{ parameters.resourceGroupName }} -SubscriptionId $(subscriptionId) -TeardownEnvironment

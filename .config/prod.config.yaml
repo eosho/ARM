@@ -1,7 +1,7 @@
 # Environment specific variables
 
 variables:
-  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/master') }}:
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
     - name: serviceConnection
       value:
 
@@ -18,4 +18,4 @@ variables:
       value: eastus2
 
     - name: resourceGroupName
-      value: 
+      value:

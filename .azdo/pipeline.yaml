@@ -84,7 +84,7 @@ stages:
     dependsOn: []
     condition: eq('${{ parameters.teardownEnvironment }}', 'false')
     jobs:
-      - template: templates/pipeline.jobs.pre.yaml
+      - template: templates/pipeline.jobs.build.yaml
 
   # ######## INITIALIZATION ########
   # Configures the subscription - sets up resource providers and features

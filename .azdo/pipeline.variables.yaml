@@ -22,9 +22,19 @@ variables:
 - name: resourceProviders
   value: '[
     "Microsoft.Resources",
-    "Microsoft.Compute",
     "Microsoft.Network",
-    "Microsoft.Storage"
+    "Microsoft.Insights",
+    "Microsoft.Security",
+    "Microsoft.EventGrid"
+    "Microsoft.Compute",
+    "Microsoft.Storage",
+    "Microsoft.OperationalInsights",
+    "Microsoft.OperationsManagement",
+    "Microsoft.KeyVault",
+    "Microsoft.Portal",
+    "Microsoft.Authorization",
+    "Microsoft.Sql",
+    "Microsoft.ChangeAnalysis"
   ]'
 
 - name: resourceProviderFeatures
