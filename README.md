@@ -1,20 +1,25 @@
-# Introduction
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project.
+# WBA - Rapid Deployment Automation
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+To get started working on this repository, see the [Getting Started](/docs/GettingStarted.md) guide.
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests.
+### What are we trying to do
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better.
+- Provide a [**trustable**](https://trustable.io/) environment
+- Provide a method to do application lifecycle management for the **trustable** environment
+- Provision an example application into that **trustable** environment
+- Attempting to follow the philosophy of [GitOPS](https://www.weave.works/blog/gitops-operations-by-pull-request)
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+### How are we doing this
+
+- Utilizing [Azure Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview) to promote developoment ease and more concise syntax compared to ARM (JSON). You can directly call functions from other resources or modules.
+- Infrastructure tests to promote a trusted and deployable environment every single time.
+- etc...
+
+### Goals
+
+The goal of the rapid deployment is to promote the following:
+
+- Secure deployment
+- Full fledged automation
+- Speed and Quality
+- Deployable and Repeatable
