@@ -89,7 +89,7 @@ jobs:
                 }
                 TestResult = @{
                   TestSuiteName = 'Solution Tests'
-                  OutputPath    = '$(baseWorkingDirectory)/${{ scenario }}-testResults.xml'
+                  OutputPath    = '$(baseWorkingDirectory)/${{ scenario }}/${{ scenario }}-testResults.xml'
                   OutputFormat  = 'NUnitXml'
                   Enabled       = $true
                 }
@@ -105,7 +105,7 @@ jobs:
           inputs:
             testRunTitle: 'Pester ${{ scenario }} test results'
             testResultsFormat: 'NUnit'
-            testResultsFiles: '${{ scenario }}-testResults.xml'
+            testResultsFiles: '**/${{ scenario }}-testResults.xml'
             mergeTestResults: true
             failTaskOnFailedTests: true
             continueOnError: false
@@ -118,7 +118,6 @@ jobs:
         docker run \
           -e RUN_LOCAL=true \
           -e VALIDATE_POWERSHELL=true \
-          -e VALIDATE_ARM=true \
           -v $(System.DefaultWorkingDirectory):/tmp/lint \
           github/super-linter
       displayName: 'Code Scan via Github Super-Linter'
