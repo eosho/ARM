@@ -77,7 +77,7 @@ jobs:
           displayName: Invoke [${{ scenario }}] Pester tests
           condition: succeededOrFailed()
           inputs:
-            azureSubscription: '$(serviceConnection)'
+            azureSubscription: '${{ parameters.serviceConnection }}'
             ScriptType: 'InlineScript'
             Inline: |
               # Invoke Pester tests
