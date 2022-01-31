@@ -38,17 +38,17 @@ To ensure you can use all the content in this repository you'd want to install
   curl -L https://aka.ms/InstallAzureCli | bash
   ```
 
-- And of course [Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep)
-
-  ```PowerShell
-  az bicep install
-  ```
-
 - The latest Pester version [Pester 5.3+](https://www.powershellgallery.com/packages/Pester/5.3.1)
 
   ```PowerShell
   # One-liner
   Install-Module -Name Pester -Scope CurrentUser -Repository PSGallery -Force
+  ```
+
+- And of course [Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview?tabs=bicep)
+
+  ```PowerShell
+  az bicep install
   ```
 
 ## Clone the repository
