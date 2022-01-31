@@ -222,7 +222,7 @@ module cosmosDb 'Microsoft.DocumentDB/databaseAccounts/deploy.bicep' = {
 // Deploy Cosmos DB private DNS zone
 module cosmosDbPrivateDNSZone 'Microsoft.Network/privateDnsZones/deploy.bicep' = {
   scope: resourceGroup(rg.name)
-  name: '${cosmosDbName}-private-dns-zone'
+  name: '${cosmosDb.name}-private-dns-zone'
   params: {
     name: 'privatelink.documents.azure.com'
     virtualNetworkLinks: [
