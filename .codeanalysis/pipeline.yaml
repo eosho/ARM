@@ -74,12 +74,12 @@ jobs:
             continueOnError: false
             condition: succeededOrFailed()
 
-    - task: Bash@3
-      displayName: 'Compile main.bicep'
-      inputs:
-        targetType: 'inline'
-        script: |
-          az bicep build --file $(bicepDirectory)/main.bicep --outfile $(bicepDirectory)/main.bicep.json
+    # - task: Bash@3
+    #   displayName: 'Compile main.bicep'
+    #   inputs:
+    #     targetType: 'inline'
+    #     script: |
+    #       az bicep build --file $(bicepDirectory)/main.bicep --outfile $(bicepDirectory)/main.bicep.json
 
     - task: CopyFiles@2
       displayName: 'Stage deployment files'
