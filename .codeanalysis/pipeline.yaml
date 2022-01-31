@@ -12,7 +12,7 @@ trigger:
   batch: true
   branches:
     include:
-    - 'src/ARM/tests/*'
+    - '*'
   paths:
     exclude:
     - README.md
@@ -34,43 +34,6 @@ jobs:
         targetType: 'inline'
         script: |
           az bicep install
-
-    # - pwsh: |
-    #     Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
-    #   displayName: 'Install PSScriptAnalyzer'
-
-    # - pwsh: |
-    #     cd $(System.DefaultWorkingDirectory)
-    #     git clone https://github.com/Azure/arm-ttk.git
-    #   displayName: 'Download ARM-TTK'
-
-    # - pwsh: |
-    #     Import-Module $(System.DefaultWorkingDirectory)/arm-ttk/arm-ttk/arm-ttk.psd1 -Force
-    #     Import-Module $(baseWorkingDirectory)/tests/helpers/HelperFunctions.psm1 -Force
-
-    #     $templates = Get-ChildItem '$(System.DefaultWorkingDirectory)/bicep' -File -Filter '*.json' -Recurse -Exclude '*.parameters.*.json','main.json' | Where-Object { ($_ | Get-Content) -match 'schema.management.azure.com' }
-
-    #     foreach ($template in $templates) {
-    #       Write-Output "Processing file: $($template.FullName)"
-    #       $results = Test-AzTemplate -TemplatePath $template.FullName -Test deploymentTemplate -ErrorAction Continue
-
-    #       # print result
-    #       $results
-
-    #       Export-NUnitXml -TestResults $results -Path $(System.DefaultWorkingDirectory)
-    #     }
-    #   displayName: 'Run ARM TTK tests'
-    #   condition: always()
-
-    # - task: PublishTestResults@2
-    #   displayName: 'Publish ARMTTK test results'
-    #   condition: always()
-    #   inputs:
-    #     testRunTitle: ARM TTK - Test Result
-    #     testResultsFormat: NUnit
-    #     testResultsFiles: '$(System.DefaultWorkingDirectory)/*-armttk.xml'
-    #     mergeTestResults: true
-    #     failTaskOnFailedTests: true
 
     - ${{ each scenario in parameters.pesterScenarios }}:
         - task: AzurePowerShell@5
@@ -110,17 +73,6 @@ jobs:
             failTaskOnFailedTests: true
             continueOnError: false
             condition: succeededOrFailed()
-
-    - script: docker pull github/super-linter:latest
-      displayName: 'Pull Github Super-Linter image'
-
-    - script: >-
-        docker run \
-          -e RUN_LOCAL=true \
-          -e VALIDATE_POWERSHELL=true \
-          -v $(System.DefaultWorkingDirectory):/tmp/lint \
-          github/super-linter
-      displayName: 'Code Scan via Github Super-Linter'
 
     - task: CopyFiles@2
       displayName: 'Stage deployment files'
