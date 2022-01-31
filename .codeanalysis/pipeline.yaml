@@ -4,10 +4,6 @@ parameters:
   default:
   - qa
 
-- name: serviceConnection
-  type: string
-  default: azureInternal
-
 variables:
 # Global pipeline variables
 - template: ../.azdo/pipeline.variables.yaml
