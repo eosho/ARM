@@ -1,11 +1,6 @@
 # Getting Started
 
-To get started working with this repository make sure [PowerShell Core](https://github.com/powershell/powershell) is installed on your system. Within PowerShell make sure you have the [Pester](https://github.com/pester/Pester) and the latest [Az](https://docs.microsoft.com/en-us/powershell/azure/install-az-ps?view=azps-5.5.0) Modules installed as the testing framework relies on these.
-
-```powershell
-Install-Module Pester -Scope CurrentUser
-Install-Module -Name Az -AllowClobber -Scope CurrentUser
-```
+This section will give on an overview on how to get started using this repository
 
 ## General prerequisites
 
