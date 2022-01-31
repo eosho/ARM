@@ -8,6 +8,10 @@ parameters:
   type: string
   default: azureInternal
 
+variables:
+# Global pipeline variables
+- template: pipeline.variables.yaml
+
 trigger:
   batch: true
   branches:
@@ -35,9 +39,9 @@ jobs:
         script: |
           az bicep install
 
-    - pwsh: |
-        Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
-      displayName: 'Install PSScriptAnalyzer'
+    # - pwsh: |
+    #     Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+    #   displayName: 'Install PSScriptAnalyzer'
 
     # - pwsh: |
     #     cd $(System.DefaultWorkingDirectory)
@@ -77,7 +81,7 @@ jobs:
           displayName: Invoke [${{ scenario }}] Pester tests
           condition: succeededOrFailed()
           inputs:
-            azureSubscription: '${{ parameters.serviceConnection }}'
+            azureSubscription: 'azureInternal'
             ScriptType: 'InlineScript'
             Inline: |
               # Invoke Pester tests
