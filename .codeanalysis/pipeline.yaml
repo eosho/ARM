@@ -10,7 +10,7 @@ parameters:
 
 variables:
 # Global pipeline variables
-- template: pipeline.variables.yaml
+- template: ../.azdo/pipeline.variables.yaml
 
 trigger:
   batch: true
