@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.1124.51302",
-      "templateHash": "6921476955431546922"
+      "templateHash": "6037352983459298469"
     }
   },
   "parameters": {
@@ -1024,7 +1024,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.4.1124.51302",
-              "templateHash": "16989765042368217204"
+              "templateHash": "15431497968174913564"
             }
           },
           "parameters": {
@@ -1342,7 +1342,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.4.1124.51302",
-                      "templateHash": "8724886325487957254"
+                      "templateHash": "3481068824643568988"
                     }
                   },
                   "parameters": {
@@ -1432,7 +1432,7 @@
                             "_generator": {
                               "name": "bicep",
                               "version": "0.4.1124.51302",
-                              "templateHash": "4003244363466943384"
+                              "templateHash": "6421364350723786297"
                             }
                           },
                           "parameters": {
@@ -1486,13 +1486,6 @@
                               "metadata": {
                                 "description": "Optional. Indicates the kind of algorithm used for partitioning"
                               }
-                            },
-                            "cuaId": {
-                              "type": "string",
-                              "defaultValue": "",
-                              "metadata": {
-                                "description": "Optional. Customer Usage Attribution ID (GUID). This GUID must be previously registered"
-                              }
                             }
                           },
                           "resources": [
@@ -1511,31 +1504,6 @@
                                 },
                                 "options": {
                                   "throughput": "[parameters('throughput')]"
-                                }
-                              }
-                            },
-                            {
-                              "condition": "[not(empty(parameters('cuaId')))]",
-                              "type": "Microsoft.Resources/deployments",
-                              "apiVersion": "2020-10-01",
-                              "name": "[format('pid-{0}', parameters('cuaId'))]",
-                              "properties": {
-                                "expressionEvaluationOptions": {
-                                  "scope": "inner"
-                                },
-                                "mode": "Incremental",
-                                "parameters": {},
-                                "template": {
-                                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-                                  "contentVersion": "1.0.0.0",
-                                  "metadata": {
-                                    "_generator": {
-                                      "name": "bicep",
-                                      "version": "0.4.1124.51302",
-                                      "templateHash": "3777044862425570984"
-                                    }
-                                  },
-                                  "resources": []
                                 }
                               }
                             }
@@ -2105,6 +2073,7 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', variables('cosmosDbName'))]",
         "[subscriptionResourceId('Microsoft.Resources/deployments', parameters('resourceGroupName'))]"
       ]
     },
