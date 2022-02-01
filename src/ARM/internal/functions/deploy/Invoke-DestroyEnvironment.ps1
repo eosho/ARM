@@ -86,28 +86,13 @@ function Invoke-DestroyEnvironment {
       Write-PipelineLogger -LogType "info" -Message "Invoke-DestroyEnvironment.ScopeObject.Create"
       switch ($DeploymentScope) {
         'resourcegroup' {
-          if ($templateObj.'$schema' -match [regex]::Escape('deploymentTemplate.json')) {
-            $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
-          } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope resourcegroup."
-            return
-          }
+          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
         }
         'subscription' {
-          if ($templateObj.'$schema' -match [regex]::Escape('subscriptionDeploymentTemplate.json')) {
-            $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
-          } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope subscription."
-            return
-          }
+          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
         }
         'managementgroup' {
-          if ($templateObj.'$schema' -match [regex]::Escape('managementGroupDeploymentTemplate.json')) {
-            $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
-          } else {
-            Write-PipelineLogger -LogType "warning" -Message "Deployment Template does not match deployment scope managementgroup."
-            return
-          }
+          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
         }
         default {
           throw "Invalid deployment scope. Valid scopes are resourcegroup, subscription or managementgroup"
