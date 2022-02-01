@@ -86,13 +86,13 @@ function Invoke-DestroyEnvironment {
       Write-PipelineLogger -LogType "info" -Message "Invoke-DestroyEnvironment.ScopeObject.Create"
       switch ($DeploymentScope) {
         'resourcegroup' {
-          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+          $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -ResourceGroupName $ResourceGroupName -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
         }
         'subscription' {
-          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
+          $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -SubscriptionId $SubscriptionId -ErrorAction Stop -WhatIf:$false
         }
         'managementgroup' {
-          $scopeObject = Invoke-DestroyEnvironmentScope -DeploymentScope $DeploymentScope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
+          $scopeObject = New-ARMDeploymentScope -DeploymentScope $DeploymentScope -ManagementGroupId $ManagementGroupId -ErrorAction Stop -WhatIf:$false
         }
         default {
           throw "Invalid deployment scope. Valid scopes are resourcegroup, subscription or managementgroup"
