@@ -119,7 +119,7 @@ function New-ARMDeployment {
   [CmdletBinding(SupportsShouldProcess = $true)]
   [Alias("Invoke-ARMDeployment")]
   param (
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [Alias("TemplatePath")]
     [string] $TemplateFilePath,
 
@@ -419,7 +419,7 @@ function New-ARMDeployment {
             if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
               Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
               $deploymentService.RemoveResourceGroup(
-                $ScopeObj
+                $scopeObject
               )
 
               Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceGroup.Deleted.Success"
