@@ -23,8 +23,8 @@ trigger:
     - src/*
 
 jobs:
-  - job: QA_Tests_Analysis
-    displayName: 'QA Tests - Code Analysis'
+  - job: QA_Tests
+    displayName: 'QA Tests'
     pool:
       vmImage: "ubuntu-latest"
     steps:
