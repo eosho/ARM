@@ -41,7 +41,6 @@ function Invoke-DestroyEnvironment {
 
   [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '')]
   [CmdletBinding(SupportsShouldProcess = $true)]
-  [Alias("Invoke-DestroyEnvironment")]
   param (
     [Parameter(Mandatory = $true, ParameterSetName = "scope")]
     [ValidateSet("resourcegroup", "subscription", "managementgroup")]

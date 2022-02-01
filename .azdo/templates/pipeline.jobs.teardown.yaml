@@ -20,6 +20,6 @@ jobs:
       ScriptType: 'InlineScript'
       Inline: |
         # load module
-        . $(baseWorkingDirectory)/internal/scripts/preimport.ps1 && . $(baseWorkingDirectory)/tests/Pester.ps1
+        . $(baseWorkingDirectory)/internal/scripts/preimport.ps1 && . $(baseWorkingDirectory)/tests/Pester.ps1 && . $(baseWorkingDirectory)/internal/functions/deploy/Invoke-DestroyEnvironment.ps1
 
         Invoke-DestroyEnvironment -Scope "subscription" -ResourceGroupName ${{ parameters.resourceGroupName }} -SubscriptionId $(subscriptionId)
