@@ -35,7 +35,7 @@ jobs:
       inputs:
         targetType: 'inline'
         script: |
-          az bicep build --file '$(System.DefaultWorkingDirectory)/bicep/modules/main.bicep'
+          #az bicep build --file '$(System.DefaultWorkingDirectory)/bicep/modules/main.bicep'
 
     - task: CopyFiles@2
       displayName: Copy build artifacts
