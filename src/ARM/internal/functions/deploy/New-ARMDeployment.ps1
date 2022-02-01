@@ -298,17 +298,15 @@ function New-ARMDeployment {
 
     #region deployment stage
     try {
-      if (-not ($Validate -or $ValidateWhatIf)) {
-        #region remove resource lock (if any) before any deployment or teardown operation starts
-        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Remove"
-        try {
-          $deploymentService.RemoveResourceGroupLock(
-            $scopeObject
-          )
-          Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
-        } catch {
-          Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
-        }
+      #region remove resource lock (if any) before any deployment or teardown operation starts
+      Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Remove"
+      try {
+        $deploymentService.RemoveResourceGroupLock(
+          $scopeObject
+        )
+        Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
+      } catch {
+        Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
       }
       #endregion
 
