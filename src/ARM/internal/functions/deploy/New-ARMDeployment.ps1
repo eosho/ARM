@@ -30,6 +30,9 @@ function New-ARMDeployment {
     .PARAMETER DefaultDeploymentRegion
       The default deployment region. E.g. EastUS or WestUS.
 
+    .PARAMETER ResourceLock
+      Option to enable 'ReadOnly', 'CanNotDelete' or 'NotSpecified' resource locks on the resource group. 
+
     .PARAMETER Validate
       Switch to validate deployment against the ARM API.
 
@@ -154,7 +157,7 @@ function New-ARMDeployment {
     [string] $DefaultDeploymentRegion = "EastUS2",
 
     [Parameter(Mandatory = $true)]
-    [ValidateSet("ReadOnly", "CanNotDelete")]
+    [ValidateSet("ReadOnly", "CanNotDelete", "NotSpecified")]
     [Alias("Lock")]
     [string] $ResourceLock,
 
