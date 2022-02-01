@@ -36,7 +36,7 @@ Get-ChildItem -Path  $(Split-Path -Parent $MyInvocation.MyCommand.Definition) -R
 #endregion Import all module helpers
 
 # Perform Actions before loading the rest of the content
-. Import-ModuleFile -Path "$ModuleRoot\internal\scripts\preimport.ps1"
+. "$ModuleRoot\internal\scripts\preimport.ps1"
 
 #region Load functions
 foreach ($function in (Get-ChildItem "$ModuleRoot\internal\functions" -Recurse -File -Filter "*.ps1")) {
