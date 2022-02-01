@@ -53,7 +53,7 @@ Describe 'Prepare Integration Tests' {
           Label  = 'Modules are imported successfully'
           Test   = { (Get-Module -Name "ARM") }
           Action = {
-            . "../../src/ARM/internal/scripts/preimport.ps1"
+            . "../../src/ARM/internal/scripts/preimport.ps1" && . "../../src/ARM/tests/Pester.ps1"
           }
         }
       )

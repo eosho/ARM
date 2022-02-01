@@ -45,9 +45,6 @@ jobs:
             azureSubscription: 'azureInternal'
             ScriptType: 'InlineScript'
             Inline: |
-              # Invoke Pester tests
-              Install-Module Pester -Force -ErrorAction Stop -Scope CurrentUser
-
               Invoke-Pester -Configuration @{
                 Run        = @{
                   Path = "$(baseWorkingDirectory)/tests/${{ scenario }}/${{ scenario }}.Tests.ps1"
