@@ -14,7 +14,6 @@ This module deploys a Resource Group and assigns a resource lock to prevent acci
 | Parameter Name | Type   | Description                                                | DefaultValue | Possible values |
 | :------------- | :----- | :--------------------------------------------------------- | :----------- | :-------------- |
 | `location`     | string | **REQUIRED**. Location of the Resource Group.              | `deployment().location` |      |
-| `lockLevel`    | string | **Optional**. Type of lock for Resource Group to prevent deletion. | NotSpecified |                 |
 | `name`         | string | **REQUIRED**. The name of the Resource Group               |              |                 |
 | `tags`         | object | **Optional**. Tags of the Resource Group.                  |              |                 |
 
