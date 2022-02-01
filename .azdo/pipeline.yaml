@@ -230,12 +230,7 @@ stages:
 
   - stage: TeardownEnv
     dependsOn: []
-    condition: |
-      and
-        (
-          eq('${{ parameters.validateDeploymentType }}', 'false'),
-          eq('${{ parameters.teardownEnvironment }}', 'true')
-        )
+    condition: eq('${{ parameters.teardownEnvironment }}', 'true')
     jobs:
       - template: templates/pipeline.jobs.teardown.yaml
         parameters:
