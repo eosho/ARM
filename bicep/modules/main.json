@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.4.1124.51302",
-      "templateHash": "16477753305564406440"
+      "templateHash": "13108963214260976354"
     }
   },
   "parameters": {
@@ -235,9 +235,6 @@
           "name": {
             "value": "[parameters('resourceGroupName')]"
           },
-          "lockLevel": {
-            "value": "ReadOnly"
-          },
           "tags": {
             "value": "[variables('resourceTags')]"
           }
@@ -249,7 +246,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.4.1124.51302",
-              "templateHash": "8742862611179439016"
+              "templateHash": "10182471845074532503"
             }
           },
           "parameters": {
@@ -266,30 +263,12 @@
                 "description": "Optional. Location of the Resource Group. It uses the deployment's location when not provided."
               }
             },
-            "lockLevel": {
-              "type": "string",
-              "defaultValue": "NotSpecified",
-              "metadata": {
-                "description": "Optional. Specify the type of lock."
-              },
-              "allowedValues": [
-                "CanNotDelete",
-                "NotSpecified",
-                "ReadOnly"
-              ]
-            },
             "tags": {
               "type": "object",
               "defaultValue": {},
               "metadata": {
                 "description": "Optional. Tags of the storage account resource."
               }
-            }
-          },
-          "variables": {
-            "lockNotes": {
-              "CanNotDelete": "Cannot delete resource or child resources.",
-              "ReadOnly": "Cannot modify the resource or child resources."
             }
           },
           "resources": [
@@ -300,19 +279,6 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "properties": {}
-            },
-            {
-              "condition": "[not(equals(parameters('lockLevel'), 'NotSpecified'))]",
-              "type": "Microsoft.Authorization/locks",
-              "apiVersion": "2017-04-01",
-              "name": "[format('{0}-lock', parameters('name'))]",
-              "properties": {
-                "level": "[parameters('lockLevel')]",
-                "notes": "[variables('lockNotes')[parameters('lockLevel')]]"
-              },
-              "dependsOn": [
-                "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('name'))]"
-              ]
             }
           ],
           "outputs": {
