@@ -29,7 +29,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   properties: {}
 }
 
-resource lock 'Microsoft.Authorization/locks@2020-05-01' = if (lockLevel != 'NotSpecified') {
+resource lock 'Microsoft.Authorization/locks@2017-04-01' = if (lockLevel != 'NotSpecified') {
   name: '${resourceGroup.name}-lock'
   properties: {
     level: lockLevel
