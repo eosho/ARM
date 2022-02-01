@@ -7,7 +7,6 @@ This module deploys a Resource Group and assigns a resource lock to prevent acci
 | Resource Type                        | ApiVersion |
 | :----------------------------------- | :--------- |
 | `Microsoft.Resources/resourceGroups` | 2021-04-01 |
-| `Microsoft.Authorization/locks`      | 2020-05-01 |
 
 ## Parameters
 
