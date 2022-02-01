@@ -52,7 +52,7 @@ To keep the amount of pipeline code at a minimum we make heavy use of pipeline t
 | Template Name | Description |
 | - | - |
 | **jobs.build.yaml** | This template perform all prerequisites module installation on the hosted agent. |
-| **jobs.infra.yaml** | This template performs a validation or actual deployment to Azure using a provided parameter file. |
+| **jobs.deploy.yaml** | This template performs a validation or actual deployment to Azure using a provided parameter file. |
 | **jobs.initialize.yaml** | This template is capable of configuration your subscription. It is currently limited to enabling resource providers/features, however scope can be extended. |
 | **jobs.invokeccp.yaml** | This template is capable of Invoking the CCP pipeline to deploy a resource. |
 | **jobs.teardown.yaml** | This template is capable of tearing down/deleting an entire resource group |

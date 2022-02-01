@@ -139,7 +139,7 @@ stages:
         eq('${{ parameters.environment }}', 'int')
       )
     jobs:
-      - template: templates/pipeline.jobs.infra.yaml
+      - template: templates/pipeline.jobs.deploy.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
           location: '$(location)'
@@ -164,7 +164,7 @@ stages:
         eq('${{ parameters.environment }}', 'dev')
       )
     jobs:
-      - template: templates/pipeline.jobs.infra.yaml
+      - template: templates/pipeline.jobs.deploy.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
           location: '$(location)'
@@ -189,7 +189,7 @@ stages:
         eq('${{ parameters.environment }}', 'perf')
       )
     jobs:
-      - template: templates/pipeline.jobs.infra.yaml
+      - template: templates/pipeline.jobs.deploy.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
           location: '$(location)'
@@ -214,7 +214,7 @@ stages:
         eq('${{ parameters.environment }}', 'prod')
       )
     jobs:
-      - template: templates/pipeline.jobs.infra.yaml
+      - template: templates/pipeline.jobs.deploy.yaml
         parameters:
           resourceGroupName: '$(resourceGroupName)'
           location: '$(location)'
