@@ -3,10 +3,10 @@ param (
 
   $TestFunctions = $false,
 
-  $TestIntegration = $false,
+  $TestIntegration = $true,
 
   [ValidateSet('None', 'Normal', 'Detailed', 'Diagnostic')]
-  $Output = "None",
+  $Output = "Detailed",
 
   $Include = "*",
 
@@ -17,7 +17,6 @@ Write-PSFMessage -Level Important -Message "Starting Tests"
 
 Write-PSFMessage -Level Important -Message "Importing Module"
 
-$global:testroot = $PSScriptRoot
 $global:__pester_data = @{ }
 
 Remove-Module ARM -ErrorAction Ignore
@@ -34,7 +33,7 @@ $null = New-Item -Path "$PSScriptRoot\..\.." -Name results -ItemType Directory -
 $totalFailed = 0
 $totalRun = 0
 
-$testresults = @()
+$testResults = @()
 $config = [PesterConfiguration]::Default
 $config.TestResult.Enabled = $true
 
@@ -55,7 +54,7 @@ if ($TestFunctions) {
       $totalRun += $result.TotalCount
       $totalFailed += $result.FailedCount
       $result.Tests | Where-Object Result -ne 'Passed' | ForEach-Object {
-        $testresults += [pscustomobject]@{
+        $testResults += [pscustomobject]@{
           Block   = $_.Block
           Name    = "It $($_.Name)"
           Result  = $_.Result
@@ -68,6 +67,35 @@ if ($TestFunctions) {
 #region Function Tests
 
 $global:__pester_data.ScriptAnalyzer | Out-Host
+
+#region Run QA Tests
+if ($TestGeneral) {
+  Write-PSFMessage -Level Important -Message "Proceeding with QA tests"
+  foreach ($file in (Get-ChildItem "$PSScriptRoot\qa" | Where-Object Name -like "*.Tests.ps1")) {
+    if ($file.Name -notlike $Include) { continue }
+    if ($Exclude -contains $file.Name) { continue }
+
+    Write-PSFMessage -Level Significant -Message "  Executing <c='em'>$($file.Name)</c>"
+    $config.TestResult.OutputPath = Join-Path "$PSScriptRoot\..\..\results" "$($file.BaseName).xml"
+    $config.Run.Path = $file.FullName
+    $config.Run.PassThru = $true
+    $config.Output.Verbosity = $Output
+    $results = Invoke-Pester -Configuration $config
+    foreach ($result in $results) {
+      $totalRun += $result.TotalCount
+      $totalFailed += $result.FailedCount
+      $result.Tests | Where-Object Result -ne 'Passed' | ForEach-Object {
+        $testResults += [pscustomobject]@{
+          Block   = $_.Block
+          Name    = "It $($_.Name)"
+          Result  = $_.Result
+          Message = $_.ErrorRecord.DisplayErrorMessage
+        }
+      }
+    }
+  }
+}
+#endregion Run QA Tests
 
 #region Run Integration Tests
 if ($TestIntegration) {
@@ -86,7 +114,7 @@ if ($TestIntegration) {
       $totalRun += $result.TotalCount
       $totalFailed += $result.FailedCount
       $result.Tests | Where-Object Result -ne 'Passed' | ForEach-Object {
-        $testresults += [pscustomobject]@{
+        $testResults += [pscustomobject]@{
           Block   = $_.Block
           Name    = "It $($_.Name)"
           Result  = $_.Result
@@ -98,7 +126,7 @@ if ($TestIntegration) {
 }
 #endregion Run Integration Tests
 
-$testresults | Sort-Object Describe, Context, Name, Result, Message | Format-List
+$testResults | Sort-Object Describe, Context, Name, Result, Message | Format-List
 
 if ($totalFailed -eq 0) {
   Write-PSFMessage -Level Critical -Message "All <c='em'>$totalRun</c> tests executed without a single failure!"

@@ -3,6 +3,8 @@ parameters:
   type: object
   default:
   - qa
+  - integration
+  - common
 
 variables:
 # Global pipeline variables
@@ -23,8 +25,8 @@ trigger:
     - src/*
 
 jobs:
-  - job: QA_Tests
-    displayName: 'QA Tests'
+  - job: Tests
+    displayName: 'Tests'
     pool:
       vmImage: "ubuntu-latest"
     steps:
@@ -51,7 +53,7 @@ jobs:
                   Path = "$(baseWorkingDirectory)/tests/${{ scenario }}/${{ scenario }}.Tests.ps1"
                 }
                 TestResult = @{
-                  TestSuiteName = 'Solution Tests'
+                  TestSuiteName = '{{ scenario }} Tests'
                   OutputPath    = '$(baseWorkingDirectory)/${{ scenario }}/${{ scenario }}-testResults.xml'
                   OutputFormat  = 'NUnitXml'
                   Enabled       = $true

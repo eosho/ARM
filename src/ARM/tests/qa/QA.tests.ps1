@@ -7,7 +7,7 @@
   It will grab all bicep file and build them to ARM JSON for testing.
 
 .EXAMPLE
-  PS C:\> tests\alcatraz.tests.ps1
+  PS C:\> tests\qa\QA.tests.ps1
 
 .INPUTS
   Inputs (if any)
@@ -290,47 +290,6 @@ Describe 'Quality Assurance Tests' {
           $locationFlag | Should -Contain $true
         }
       }
-    }
-  }
-
-  Context 'Test Deployment' {
-    #$jsonFile = (Get-ChildItem -Path $bicepDirectory -Recurse -File -Filter 'core.json').FullName
-    $script:location = "eastus2"
-
-    It "Modules are imported successfully" {
-      $preReqConditions = @(
-        @{
-          Label  = 'Modules are imported successfully'
-          Test   = { (Get-Module -Name "ARM") }
-          Action = {
-            . "../../src/ARM/internal/scripts/preimport.ps1" && . "../../src/ARM/tests/Pester.ps1"
-          }
-        }
-      )
-
-      @($preReqConditions).ForEach( {
-          if ( -not (& $_.Test)) {
-            Write-Warning -Message "Test condition of [$($_.Label)] not passed. Remediating..."
-            & $_.Action
-          } else {
-            Write-Verbose -Message "Test condition passed."
-          }
-        })
-    }
-
-    It "ARM template validation is successful" {
-
-      $deploymentArgs = @{
-        Scope                     = "subscription"
-        SubscriptionId            = "$($(Get-AzContext).Subscription.Id)"
-        TemplateFilePath          = "bicep\modules\main.json"
-        TemplateParameterFilePath = "bicep\modules\main.parameters.int.json"
-        Location                  = "$location"
-        Validate                  = $true
-      }
-
-      $result = Invoke-ARMDeployment @deploymentArgs
-      $result.error | Should -BeNullOrEmpty
     }
   }
 }

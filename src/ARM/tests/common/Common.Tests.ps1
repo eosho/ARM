@@ -1,8 +1,12 @@
 [CmdletBinding()]
 Param (
-  [switch] $SkipTest,
+  [switch] $SkipTest
+)
 
-  [string[]] $CommandPath = @("..\..\functions", "..\..\internal\functions")
+$rootPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$commandPath = @(
+  "$rootPath\..\..\functions",
+  "$rootPath\..\..\internal\functions"
 )
 
 if ($SkipTest) { return }
