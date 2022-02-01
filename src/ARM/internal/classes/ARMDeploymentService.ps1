@@ -53,7 +53,11 @@ class IDeploymentService {
     Throw "Method Not Implemented"
   }
 
-  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
+  [void] CreateResourceLock([PSObject] $ScopeObject, [string] $LockLevel) {
+    Throw "Method Not Implemented"
+  }
+
+  [void] RemoveResourceLock([PSObject] $ScopeObject) {
     Throw "Method Not Implemented"
   }
 
@@ -667,8 +671,20 @@ class ARMDeploymentService : IDeploymentService {
   }
   #endregion
 
-  # Method: Remove resource lock on the existing resource group
-  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
+  # Method: Create resource lock on the existing scope
+  [void] CreateResourceLock([PSObject] $ScopeObject, [string] $LockLevel) {
+    try {
+      $lockName = "$($ScopeObject.Name) + $LockLevel"
+      New-AzResourceLock -Scope $ScopeObject.Scope -LockLevel $LockLevel -LockName $LockName -LockNotes "Locked by Deployment" -ErrorAction SilentlyContinue
+    } catch {
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceLock. Details: $($_.Exception.Message)"
+      throw $_
+    }
+  }
+  #endregion
+
+  # Method: Remove resource lock on the existing scope
+  [void] RemoveResourceLock([PSObject] $ScopeObject) {
     try {
       $allLocks = Get-AzResourceLock -Scope $ScopeObject.Scope -ErrorAction SilentlyContinue | Where-Object { $_ProvisioningState -ne "Deleting" }
       if ($null -ne $allLocks) {
@@ -677,7 +693,7 @@ class ARMDeploymentService : IDeploymentService {
         }
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroupLock. Details: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceLock. Details: $($_.Exception.Message)"
       throw $_
     }
   }
