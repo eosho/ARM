@@ -649,7 +649,7 @@ class ARMDeploymentService : IDeploymentService {
   # Method: Get an existing resource group
   [object] GetResourceGroup([PSObject] $ScopeObject) {
     try {
-      return Get-AzResourceGroup -Id $ScopeObject.Scope -ErrorAction SilentlyContinue
+      return Get-AzResourceGroup -Name $ScopeObject.Name -ErrorAction SilentlyContinue
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running GetResourceGroup. Details: $($_.Exception.Message)"
       throw $_
@@ -660,9 +660,9 @@ class ARMDeploymentService : IDeploymentService {
   # Method: Remove an existing resource group
   [void] RemoveResourceGroup([PSObject] $ScopeObject) {
     try {
-      $resourceGroup = $this.GetResourceGroup($ScopeObject)
-      if ($null -ne $resourceGroup) {
-        $resourceGroup | Remove-AzResourceGroup -Force -ErrorAction SilentlyContinue
+      $rg = $this.GetResourceGroup($ScopeObject)
+      if ($null -ne $rg) {
+        Remove-AzResourceGroup -Id $rg.ResourceId -Force -ErrorAction SilentlyContinue
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroup. Details: $($_.Exception.Message)"
