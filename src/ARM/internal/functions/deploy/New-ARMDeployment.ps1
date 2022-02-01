@@ -39,9 +39,6 @@ function New-ARMDeployment {
     .PARAMETER ValidateWhatIf
       Switch to perform a what-if deployment validation against the ARM API.
 
-    .PARAMETER TearDownEnvironment
-      Switch to delete the entire resource group and its contents.
-
     .PARAMETER AzModuleCheck
       Switch to validate latest Az module is installed locally.
 
@@ -168,9 +165,6 @@ function New-ARMDeployment {
     [switch] $ValidateWhatIf,
 
     [Parameter(Mandatory = $false)]
-    [switch] $TearDownEnvironment,
-
-    [Parameter(Mandatory = $false)]
     [switch] $RemoveDeploymentHistory,
 
     [Parameter(Mandatory = $false)]
@@ -202,6 +196,7 @@ function New-ARMDeployment {
 
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Processing"
 
+    # set teardown to true if the user wants to tear down the environment
     #region Parse Content
     Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Resolving.TemplateFilePath"
     if (Test-Path -Path $TemplateFilePath) {
@@ -312,126 +307,98 @@ function New-ARMDeployment {
       }
       #endregion
 
-      if (-not ($TeardownEnvironment.IsPresent)) {
-        #region create rg if scope is resourcegroups
-        if ($DeploymentScope -eq "resourcegroup") {
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
+      #region create rg if scope is resourcegroups
+      if ($DeploymentScope -eq "resourcegroup") {
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup"
 
-          if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
-            Write-PipelineLogger -LogType "warning" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
+        if (-not ($deploymentService.GetResourceGroup($ScopeObject))) {
+          Write-PipelineLogger -LogType "warning" -Message "New-ARMDeployment.Validate.ResourceGroup.NotFound"
 
-            if ($PSCmdlet.ShouldProcess("Resource group [$ResourceGroupName] in location [$DefaultDeploymentRegion]", 'Create')) {
-              $deploymentService.CreateResourceGroup($ScopeObject, $DefaultDeploymentRegion)
-              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.ResourceGroup.Created"
-            }
-          } else {
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup.Exists"
+          if ($PSCmdlet.ShouldProcess("Resource group [$ResourceGroupName] in location [$DefaultDeploymentRegion]", 'Create')) {
+            $deploymentService.CreateResourceGroup($ScopeObject, $DefaultDeploymentRegion)
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.ResourceGroup.Created"
           }
+        } else {
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.ResourceGroup.Exists"
+        }
+      }
+      #endregion
+
+      if ($Validate.IsPresent) {
+        #region validate deployment template
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Initializing"
+
+        if ($PSCmdlet.ShouldProcess("Validation - Scope [$DeploymentScope]", 'Validate')) {
+          $deploymentService.ExecuteValidation(
+            $scopeObject,
+            $templateObj,
+            $templateParameterObj,
+            $DefaultDeploymentRegion
+          )
         }
         #endregion
+      } elseif ($ValidateWhatIf.IsPresent) {
+        #region validate whatif
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Initializing"
 
-        if ($Validate.IsPresent) {
-          #region validate deployment template
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.Initializing"
-
-          if ($PSCmdlet.ShouldProcess("Validation - Scope [$DeploymentScope]", 'Validate')) {
-            $deploymentService.ExecuteValidation(
-              $scopeObject,
-              $templateObj,
-              $templateParameterObj,
-              $DefaultDeploymentRegion
-            )
-          }
-          #endregion
-        } elseif ($ValidateWhatIf.IsPresent) {
-          #region validate whatif
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Validate.WhatIf.Initializing"
-
-          if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$DeploymentScope]", 'ValidateWhatIf')) {
-            $deploymentService.ExecuteValidationWhatIf(
-              $scopeObject,
-              $templateObj,
-              $templateParameterObj,
-              $DefaultDeploymentRegion
-            )
-            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.WhatIf.Success"
-          }
-          #endregion
-        } else {
-          #region create deployment
-          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
-
-          if ($PSCmdlet.ShouldProcess("ARM Deployment [$DeploymentScope]", 'Create')) {
-            $deployment = $deploymentService.ExecuteDeployment(
-              $scopeObject,
-              $templateObj,
-              $templateParameterObj,
-              $DefaultDeploymentRegion
-            )
-
-            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Success"
-          }
-          #endregion
-
-          if ($Scope -eq "resourcegroup") {
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Create"
-            #region add resource lock
-            try {
-              $deploymentService.CreateResourceGroupLock(
-                $scopeObject,
-                $ResourceLock
-              )
-              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Create.Success"
-            } catch {
-              Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Create.Failed. Details: $($_.Exception.Message)"
-            }
-          }
-          #endregion
-
-          #region delete deployment history
-          if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Initializing"
-            if ($PSCmdlet.ShouldProcess("Remove Deployment History [$DeploymentScope]", 'Remove')) {
-              $cleanup = $deploymentService.RemoveDeploymentHistory(
-                $scopeObject,
-                $deployment
-              )
-
-              if ($cleanup -eq "true") {
-                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Success"
-              } else {
-                Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Removing.DeploymentHistory.Failed" -NoFailOnError
-              }
-            }
-          }
-          #endregion
-        }
-      } elseif ($TeardownEnvironment.IsPresent) {
-        #region teardown environment
-        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Initializing"
-        if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$DeploymentScope]", 'Destroy')) {
-          try {
-            $rgFound = $deploymentService.GetResourceGroup(
-              $scopeObject
-            )
-
-            # Let's check if the resource group exists and the resource group name & its not in a deleting state
-            if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
-              Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
-              $deploymentService.RemoveResourceGroup(
-                $scopeObject
-              )
-
-              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceGroup.Deleted.Success"
-            }
-            Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Teardown.Completed"
-          } catch {
-            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Teardown.Failed. Details: $($_.Exception.Message)"
-          }
+        if ($PSCmdlet.ShouldProcess("WhatIf Validation - Scope [$DeploymentScope]", 'ValidateWhatIf')) {
+          $deploymentService.ExecuteValidationWhatIf(
+            $scopeObject,
+            $templateObj,
+            $templateParameterObj,
+            $DefaultDeploymentRegion
+          )
+          Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Validate.WhatIf.Success"
         }
         #endregion
       } else {
-        Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Operation.NotSupported"
+        #region create deployment
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
+
+        if ($PSCmdlet.ShouldProcess("ARM Deployment [$DeploymentScope]", 'Create')) {
+          $deployment = $deploymentService.ExecuteDeployment(
+            $scopeObject,
+            $templateObj,
+            $templateParameterObj,
+            $DefaultDeploymentRegion
+          )
+
+          Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Success"
+        }
+        #endregion
+
+        if ($Scope -eq "resourcegroup") {
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Create"
+          #region add resource lock
+          try {
+            $deploymentService.CreateResourceGroupLock(
+              $scopeObject,
+              $ResourceLock
+            )
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Create.Success"
+          } catch {
+            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Create.Failed. Details: $($_.Exception.Message)"
+          }
+        }
+        #endregion
+
+        #region delete deployment history
+        if ($deployment -and $RemoveDeploymentHistory.IsPresent) {
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Initializing"
+          if ($PSCmdlet.ShouldProcess("Remove Deployment History [$DeploymentScope]", 'Remove')) {
+            $cleanup = $deploymentService.RemoveDeploymentHistory(
+              $scopeObject,
+              $deployment
+            )
+
+            if ($cleanup -eq "true") {
+              Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.DeploymentHistory.Cleanup.Success"
+            } else {
+              Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Removing.DeploymentHistory.Failed" -NoFailOnError
+            }
+          }
+        }
+        #endregion
       }
     } catch {
       Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.Failed" -NoFailOnError

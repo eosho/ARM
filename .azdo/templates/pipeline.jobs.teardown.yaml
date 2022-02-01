@@ -22,4 +22,4 @@ jobs:
         # load module
         . $(baseWorkingDirectory)/internal/scripts/preimport.ps1 && . $(baseWorkingDirectory)/tests/Pester.ps1
 
-        Invoke-ARMDeployment -Scope "subscription" -ResourceGroupName ${{ parameters.resourceGroupName }} -SubscriptionId $(subscriptionId) -TeardownEnvironment
+        Invoke-DestroyEnvironment -Scope "subscription" -ResourceGroupName ${{ parameters.resourceGroupName }} -SubscriptionId $(subscriptionId)
