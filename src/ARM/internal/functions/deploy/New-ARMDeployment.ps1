@@ -153,6 +153,11 @@ function New-ARMDeployment {
     [Alias("Location", "loc")]
     [string] $DefaultDeploymentRegion = "EastUS2",
 
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("ReadOnly", "CanNotDelete")]
+    [Alias("Lock")]
+    [string] $ResourceLock,
+
     [Parameter(Mandatory = $false)]
     [switch] $Validate,
 
@@ -336,6 +341,17 @@ function New-ARMDeployment {
           }
           #endregion
         } else {
+          #region remove resource lock
+          try {
+            $deploymentService.RemoveResourceLock(
+              $scopeObject
+            )
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
+          } catch {
+            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
+          }
+          #endregion
+
           #region create deployment
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
 
@@ -348,6 +364,17 @@ function New-ARMDeployment {
             )
 
             Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.Deployment.Success"
+          }
+          #endregion
+
+          #region add resource lock
+          try {
+            $deploymentService.CreateResourceLock(
+              $scopeObject
+            )
+            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Create.Success"
+          } catch {
+            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Create.Failed. Details: $($_.Exception.Message)"
           }
           #endregion
 
@@ -383,7 +410,7 @@ function New-ARMDeployment {
               # Start deleting the resource group locks (if any) and resource group
               Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleting"
               try {
-                $deploymentService.RemoveResourceGroupLock(
+                $deploymentService.RemoveResourceLock(
                   $scopeObject
                 )
                 Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
