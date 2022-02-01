@@ -11,7 +11,7 @@ To get started working on this repository, see the [Getting Started](/docs/Getti
 
 ### How are we doing this
 
-- Utilizing [Azure Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview) to promote developoment ease and more concise syntax compared to ARM (JSON). You can directly call functions from other resources or modules.
+- Utilizing [Azure Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview) to promote development ease and more concise syntax compared to ARM (JSON). You can directly call functions from other resources or modules.
 - Infrastructure tests to promote a trusted and deployable environment every single time.
 - etc...
 
@@ -28,9 +28,8 @@ The goal of the rapid deployment is to promote the following:
 
 Review the following additional reference docs in order before navigating through this repository.
 
-- [CI/CD Process](./docs/CICD.md)
 - [How to Deploy](./docs/DeploymentPipeline.md)
-- [Unit Testing](./docs/Testing.md)
+- [Unit Testing](./docs/UnitTesting.md)
 
 ### DevOps Principles
 
