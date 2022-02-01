@@ -35,9 +35,6 @@ function Import-ModuleFile {
 Get-ChildItem -Path  $(Split-Path -Parent $MyInvocation.MyCommand.Definition) -Recurse -Filter '*.psm1' -Exclude 'ARM.psm1' | ForEach-Object { $_.FullName } | ForEach-Object { Import-Module $_ -Force }
 #endregion Import all module helpers
 
-# Perform Actions before loading the rest of the content
-. "$ModuleRoot\internal\scripts\preimport.ps1"
-
 #region Load functions
 foreach ($function in (Get-ChildItem "$ModuleRoot\internal\functions" -Recurse -File -Filter "*.ps1")) {
   Write-PSFMessage -Level Important -Message "Loading internal function $($function.BaseName)"

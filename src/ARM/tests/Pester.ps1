@@ -13,6 +13,8 @@ param (
   $Exclude = @("Help.Tests.ps1", "Common.Tests.ps1")
 )
 
+. "$PSScriptRoot\..\internal\scripts\preimport.ps1"
+
 Write-PSFMessage -Level Important -Message "Starting Tests"
 
 Write-PSFMessage -Level Important -Message "Importing Module"
