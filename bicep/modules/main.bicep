@@ -165,7 +165,6 @@ module rg 'Microsoft.Resources/resourceGroups/deploy.bicep' = {
   name: resourceGroupName
   params: {
     name: resourceGroupName
-    lockLevel: 'ReadOnly'
     tags: resourceTags
   }
 }

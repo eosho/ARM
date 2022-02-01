@@ -53,11 +53,11 @@ class IDeploymentService {
     Throw "Method Not Implemented"
   }
 
-  [void] CreateResourceLock([PSObject] $ScopeObject, [string] $LockLevel) {
+  [void] CreateResourceGroupLock([PSObject] $ScopeObject, [string] $LockLevel) {
     Throw "Method Not Implemented"
   }
 
-  [void] RemoveResourceLock([PSObject] $ScopeObject) {
+  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
     Throw "Method Not Implemented"
   }
 
@@ -672,28 +672,28 @@ class ARMDeploymentService : IDeploymentService {
   #endregion
 
   # Method: Create resource lock on the existing scope
-  [void] CreateResourceLock([PSObject] $ScopeObject, [string] $LockLevel) {
+  [void] CreateResourceGroupLock([PSObject] $ScopeObject, [string] $LockLevel) {
     try {
       $lockName = "$($ScopeObject.Name) + $LockLevel"
-      New-AzResourceLock -Scope $ScopeObject.Scope -LockLevel $LockLevel -LockName $LockName -LockNotes "Locked by Deployment" -ErrorAction SilentlyContinue
+      New-AzResourceLock -Scope $ScopeObject.Scope -LockLevel $LockLevel -LockName $lockName -LockNotes "Locked by Deployment" -ErrorAction SilentlyContinue
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceLock. Details: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroupLock. Details: $($_.Exception.Message)"
       throw $_
     }
   }
   #endregion
 
   # Method: Remove resource lock on the existing scope
-  [void] RemoveResourceLock([PSObject] $ScopeObject) {
+  [void] RemoveResourceGroupLock([PSObject] $ScopeObject) {
     try {
-      $allLocks = Get-AzResourceLock -Scope $ScopeObject.Scope -ErrorAction SilentlyContinue | Where-Object { $_ProvisioningState -ne "Deleting" }
+      $allLocks = Get-AzResourceLock -Scope $ScopeObject.Scope -ErrorAction SilentlyContinue | Where-Object { $_.ProvisioningState -ne "Deleting" }
       if ($null -ne $allLocks) {
         $allLocks | ForEach-Object {
           Remove-AzResourceLock -LockId $_.ResourceId -Force -ErrorAction SilentlyContinue
         }
       }
     } catch {
-      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceLock. Details: $($_.Exception.Message)"
+      Write-PipelineLogger -LogType "error" -Message "An error ocurred while running RemoveResourceGroupLock. Details: $($_.Exception.Message)"
       throw $_
     }
   }

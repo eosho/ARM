@@ -31,7 +31,7 @@ function New-ARMDeployment {
       The default deployment region. E.g. EastUS or WestUS.
 
     .PARAMETER ResourceLock
-      Option to enable 'ReadOnly', 'CanNotDelete' or 'NotSpecified' resource locks on the resource group. 
+      Option to enable 'ReadOnly', 'CanNotDelete' or 'NotSpecified' resource locks on the resource group.
 
     .PARAMETER Validate
       Switch to validate deployment against the ARM API.
@@ -42,7 +42,7 @@ function New-ARMDeployment {
     .PARAMETER TearDownEnvironment
       Switch to delete the entire resource group and its contents.
 
-    .PARAMETER SkipModuleCheck
+    .PARAMETER AzModuleCheck
       Switch to validate latest Az module is installed locally.
 
     .PARAMETER Confirm
@@ -156,7 +156,7 @@ function New-ARMDeployment {
     [Alias("Location", "loc")]
     [string] $DefaultDeploymentRegion = "EastUS2",
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [ValidateSet("ReadOnly", "CanNotDelete", "NotSpecified")]
     [Alias("Lock")]
     [string] $ResourceLock,
@@ -174,7 +174,7 @@ function New-ARMDeployment {
     [switch] $RemoveDeploymentHistory,
 
     [Parameter(Mandatory = $false)]
-    [switch] $SkipModuleCheck
+    [switch] $AzModuleCheck
   )
 
   begin {
@@ -194,7 +194,7 @@ function New-ARMDeployment {
     #endregion Initialize deployment service
 
     #region Validate Az module
-    if ($SkipModuleCheck.IsPresent) {
+    if ($AzModuleCheck.IsPresent) {
       Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ValidateAzModule.Checking"
       $deploymentService.AzModuleIsInstalled()
     }
@@ -298,6 +298,20 @@ function New-ARMDeployment {
 
     #region deployment stage
     try {
+      if (-not ($Validate -or $ValidateWhatIf)) {
+        #region remove resource lock (if any) before any deployment or teardown operation starts
+        Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Remove"
+        try {
+          $deploymentService.RemoveResourceGroupLock(
+            $scopeObject
+          )
+          Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
+        } catch {
+          Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
+        }
+      }
+      #endregion
+
       if (-not ($TeardownEnvironment.IsPresent)) {
         #region create rg if scope is resourcegroups
         if ($DeploymentScope -eq "resourcegroup") {
@@ -344,17 +358,6 @@ function New-ARMDeployment {
           }
           #endregion
         } else {
-          #region remove resource lock
-          try {
-            $deploymentService.RemoveResourceLock(
-              $scopeObject
-            )
-            Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
-          } catch {
-            Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
-          }
-          #endregion
-
           #region create deployment
           Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.Deployment.Initializing"
 
@@ -370,10 +373,12 @@ function New-ARMDeployment {
           }
           #endregion
 
+          Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Create"
           #region add resource lock
           try {
-            $deploymentService.CreateResourceLock(
-              $scopeObject
+            $deploymentService.CreateResourceGroupLock(
+              $scopeObject,
+              $ResourceLock
             )
             Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Create.Success"
           } catch {
@@ -410,17 +415,6 @@ function New-ARMDeployment {
 
             # Let's check if the resource group exists and the resource group name & its not in a deleting state
             if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
-              # Start deleting the resource group locks (if any) and resource group
-              Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceLock.Deleting"
-              try {
-                $deploymentService.RemoveResourceLock(
-                  $scopeObject
-                )
-                Write-PipelineLogger -LogType "success" -Message "New-ARMDeployment.ResourceLock.Deleted.Success"
-              } catch {
-                Write-PipelineLogger -LogType "error" -Message "New-ARMDeployment.ResourceLock.Deleted.Failed. Details: $($_.Exception.Message)"
-              }
-
               Write-PipelineLogger -LogType "info" -Message "New-ARMDeployment.ResourceGroup.Deleting"
               $deploymentService.RemoveResourceGroup(
                 $ScopeObj
