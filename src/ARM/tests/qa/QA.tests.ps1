@@ -24,6 +24,7 @@
 # root folder
 param (
   [string] $projectDirectory = (Split-Path -Path $PSScriptRoot -Parent),
+  [string] $rootDirectory = (Join-Path -Path $projectDirectory -ChildPath "../../../"),
   [string] $bicepDirectory = (Join-Path -Path $projectDirectory -ChildPath "../../../bicep/modules"),
   [array] $moduleFolderPaths = ((Get-ChildItem (Split-Path $bicepDirectory -Parent) -Recurse -Directory -Force).FullName | Where-Object {
       (Get-ChildItem $_ -File -Depth 0 -Include @('deploy.json', 'deploy.bicep') -Force).Count -gt 0
@@ -37,6 +38,30 @@ $script:subscriptionDeployment = 'https://schema.management.azure.com/schemas/20
 $pesterInstalled = Get-Command -Name Invoke-Pester -ErrorAction SilentlyContinue
 if ($null -eq $pesterInstalled) {
   Write-Error 'Pester is not installed but is required to run QA. Fix by installing Pester (Install-Module Pester)' -ErrorAction Stop
+}
+
+Describe 'Repo structure' {
+  Context 'Repo structure' {
+    It 'Project file and directory structure should be as expected' {
+      $projectItems = Get-ChildItem -Path $rootDirectory -Force
+
+      '.azdo',
+      '.codeanalysis',
+      '.config',
+      'bicep',
+      'docs',
+      'external',
+      'hooks',
+      'src' | Should -BeIn $projectItems.Where{ $_.PSIsContainer }.Name
+
+      'CODE_OF_CONDUCT.md',
+      'CONTRIBUTING.md',
+      'SUPPORT.md'
+      'README.md',
+      'Setup.ps1'
+      '.gitignore' | Should -BeIn $projectItems.Where{ -not $_.PSIsContainer }.Name
+    }
+  }
 }
 
 Describe 'File/folder tests' -Tag Modules {
