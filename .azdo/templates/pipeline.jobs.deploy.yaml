@@ -8,52 +8,6 @@ parameters:
   templateParameterFilePath: ''
 
 jobs:
-  - job: DeploySharedInfra
-    displayName: 'Deploy'
-    pool:
-      vmImage: "${{ parameters.vmImage }}"
-    steps:
-      - checkout: self
-
-      - task: DownloadBuildArtifacts@0
-        displayName: "Download artifacts"
-        inputs:
-          buildType: "current"
-          downloadType: "single"
-          artifactName: "deployment"
-          downloadPath: "$(Build.ArtifactsDirectory)"
-
-      - task: AzurePowerShell@5
-        displayName: "Deploy Bicep"
-        inputs:
-          azureSubscription: "$(serviceConnection)"
-          ScriptType: "InlineScript"
-          Inline: |
-            # load module
-            . $(baseWorkingDirectory)/tests/Pester.ps1
-
-            $deploymentArgs = @{}
-            if ('${{ parameters.validateDeploymentType }}' -eq 'validate') {
-              $deploymentArgs += @{
-                Validate = $true
-              }
-            } elseif ('${{ parameters.validateDeploymentType }}' -eq 'validateWhatIf') {
-              $deploymentArgs += @{
-                ValidateWhatIf = $true
-              }
-            }
-
-            $deploymentArgs += @{
-              Scope                     = "subscription"
-              SubscriptionId            = "$(subscriptionId)"
-              TemplateFilePath          = '$(Build.ArtifactsDirectory)/deployment/shared.json'
-              TemplateParameterFilePath = '$(Build.ArtifactsDirectory)/deployment/shared.parameters.int.json'
-              Location                  = "${{ parameters.location }}"
-            }
-
-            Invoke-ARMDeployment @deploymentArgs
-          azurePowerShellVersion: "LatestVersion"
-
   - job: DeployInfra
     displayName: 'Deploy'
     pool:
