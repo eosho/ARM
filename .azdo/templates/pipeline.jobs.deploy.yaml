@@ -3,6 +3,7 @@ parameters:
   location: ''
   prefix: ''
   vmImage: ''
+  poolName: ''
   serviceConnection: ''
   validateDeploymentType: ''
   templateParameterFilePath: ''
@@ -11,7 +12,10 @@ jobs:
   - job: DeployInfra
     displayName: 'Deploy'
     pool:
-      vmImage: "${{ parameters.vmImage }}"
+      ${{ if ne(parameters.vmImage, '') }}:
+        vmImage: ${{ parameters.vmImage }}
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
     steps:
       - checkout: self
 
