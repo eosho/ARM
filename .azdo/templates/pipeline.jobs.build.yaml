@@ -5,7 +5,10 @@ parameters:
 jobs:
   - job: 'Prerequisites'
     pool:
-      vmImage: $(vmImage)
+      ${{ if ne(parameters.vmImage, '') }}:
+        vmImage: ${{ parameters.vmImage }}
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
     steps:
       - checkout: self
       - pwsh: |
