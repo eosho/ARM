@@ -4,6 +4,9 @@ variables:
 - name: vmImage
   value: Ubuntu-latest
 
+- name: poolName
+  value: ''
+
 - name: projectVersion
   value: 1.0.0
 
