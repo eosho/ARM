@@ -1,4 +1,6 @@
 parameters:
+  vmImage: ''
+  poolName: ''
   serviceConnection: ''
   resourceProviders: ''
   resourceProviderFeatures: ''
@@ -6,6 +8,11 @@ parameters:
 jobs:
 - job: ResourceProviders
   displayName: Register resource providers
+  pool:
+    ${{ if ne(parameters.vmImage, '') }}:
+      vmImage: ${{ parameters.vmImage }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
   steps:
   - checkout: none
   - task: AzurePowerShell@5
