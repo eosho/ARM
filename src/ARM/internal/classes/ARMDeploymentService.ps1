@@ -636,9 +636,9 @@ class ARMDeploymentService : IDeploymentService {
   #endregion
 
   # Method: Create a resource group
-  [object] CreateResourceGroup([PSObject] $ScopeObject, [string] $Location) {
+  [object] CreateResourceGroup([string] $ResourceGroupName, [string] $Location) {
     try {
-      return New-AzResourceGroup -Name $ScopeObject.Name -Location $Location -ErrorAction Stop
+      return New-AzResourceGroup -Name $ResourceGroupName -Location $Location -ErrorAction Stop
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroup. Details: $($_.Exception.Message)"
       throw $_
@@ -647,9 +647,9 @@ class ARMDeploymentService : IDeploymentService {
   #endregion
 
   # Method: Get an existing resource group
-  [object] GetResourceGroup([PSObject] $ScopeObject) {
+  [object] GetResourceGroup([string] $ResourceGroupName) {
     try {
-      return Get-AzResourceGroup -Name $ScopeObject.Name -ErrorAction SilentlyContinue
+      return Get-AzResourceGroup -Name $ResourceGroupName -ErrorAction SilentlyContinue
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running GetResourceGroup. Details: $($_.Exception.Message)"
       throw $_
@@ -658,9 +658,9 @@ class ARMDeploymentService : IDeploymentService {
   #endregion
 
   # Method: Remove an existing resource group
-  [void] RemoveResourceGroup([PSObject] $ScopeObject) {
+  [void] RemoveResourceGroup([string] $ResourceGroupName) {
     try {
-      $rg = $this.GetResourceGroup($ScopeObject)
+      $rg = $this.GetResourceGroup($ResourceGroupName)
       if ($null -ne $rg) {
         Remove-AzResourceGroup -Id $rg.ResourceId -Force -ErrorAction SilentlyContinue
       }
@@ -672,10 +672,10 @@ class ARMDeploymentService : IDeploymentService {
   #endregion
 
   # Method: Create resource lock on the existing scope
-  [void] CreateResourceGroupLock([PSObject] $ScopeObject, [string] $LockLevel) {
+  [void] CreateResourceGroupLock([string] $ResourceGroupName, [string] $LockLevel) {
     try {
-      $lockName = "$($ScopeObject.Name) + $LockLevel"
-      New-AzResourceLock -Scope $ScopeObject.Scope -LockLevel $LockLevel -LockName $lockName -LockNotes "Locked by Deployment" -ErrorAction SilentlyContinue
+      $lockName = "$($ResourceGroupName) + $LockLevel"
+      New-AzResourceLock -ResourceGroupName $ResourceGroupName -LockLevel $LockLevel -LockName $lockName -LockNotes "Locked by Deployment" -ErrorAction SilentlyContinue
     } catch {
       Write-PipelineLogger -LogType "error" -Message "An error ocurred while running CreateResourceGroupLock. Details: $($_.Exception.Message)"
       throw $_

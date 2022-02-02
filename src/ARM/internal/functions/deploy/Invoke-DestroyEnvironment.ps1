@@ -129,14 +129,14 @@ function Invoke-DestroyEnvironment {
       if ($PSCmdlet.ShouldProcess("Environment Teardown - Scope [$DeploymentScope]", 'Destroy')) {
         try {
           $rgFound = $deploymentService.GetResourceGroup(
-            $scopeObject
+            $ResourceGroupName
           )
 
           # Let's check if the resource group exists and the resource group name & its not in a deleting state
           if ($null -ne $rgFound -and ($rgFound.ProvisioningState -ne "Deleting")) {
             Write-PipelineLogger -LogType "info" -Message "Invoke-DestroyEnvironment.ResourceGroup.Deleting"
             $deploymentService.RemoveResourceGroup(
-              $scopeObject
+              $ResourceGroupName
             )
 
             Write-PipelineLogger -LogType "success" -Message "Invoke-DestroyEnvironment.ResourceGroup.Deleted.Success"
