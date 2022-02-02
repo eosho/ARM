@@ -21,9 +21,6 @@ variables:
 - name: bicepDirectory
   value: $(System.DefaultWorkingDirectory)/bicep/modules
 
-- name: artifactsLocation
-  value: $(Build.SourcesDirectory)/artifacts
-
 # Resource providers to enable
 - name: resourceProviders
   value: '[
