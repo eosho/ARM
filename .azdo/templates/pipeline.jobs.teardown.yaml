@@ -1,5 +1,6 @@
 parameters:
   vmImage: ''
+  poolName: ''
   serviceConnection: ''
   subscriptionId: ''
   resourceGroupName: ''
@@ -9,7 +10,10 @@ jobs:
 - job: Teardown
   displayName: Teardown ${{ upper(parameters.environmentName) }}
   pool:
-    vmImage: "${{ parameters.vmImage }}"
+    ${{ if ne(parameters.vmImage, '') }}:
+      vmImage: ${{ parameters.vmImage }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
   steps:
   - checkout: self
   - task: AzurePowerShell@5
