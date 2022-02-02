@@ -1,9 +1,11 @@
 # global variables
 
 variables:
+# Use this for Microsoft hosted agents
 - name: vmImage
   value: Ubuntu-latest
 
+# Use this for self hosted agents
 - name: poolName
   value: ''
 
@@ -22,6 +24,7 @@ variables:
 - name: artifactsLocation
   value: $(Build.SourcesDirectory)/artifacts
 
+# Resource providers to enable
 - name: resourceProviders
   value: '[
     "Microsoft.Resources",
@@ -40,6 +43,7 @@ variables:
     "Microsoft.ChangeAnalysis"
   ]'
 
+# Resource provider features to enable
 - name: resourceProviderFeatures
   value: '[
     {
