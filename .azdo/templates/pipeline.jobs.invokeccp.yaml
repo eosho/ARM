@@ -3,13 +3,20 @@
 # Eg: DNS records, firewall rules, network rules etc.
 
 parameters:
+  vmImage: ''
+  poolName: ''
   serviceConnection: ''
   resource: ''
   templateParameterFilePath: ''
 
 jobs:
-- job: InvokeCCP_${{ parameters.resource }}
-  displayName: InvokeCCP_${{ parameters.resource }}
+- job: Deploy_${{ parameters.resource }}
+  displayName: Deploy_${{ parameters.resource }}
+  pool:
+    ${{ if ne(parameters.vmImage, '') }}:
+      vmImage: ${{ parameters.vmImage }}
+    ${{ if ne(parameters.poolName, '') }}:
+      name: ${{ parameters.poolName }}
   steps:
   - checkout: self
 
