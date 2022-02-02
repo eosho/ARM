@@ -1,5 +1,6 @@
 parameters:
   vmImage: ''
+  poolName: ''
 
 jobs:
   - job: 'Prerequisites'
@@ -15,7 +16,10 @@ jobs:
     displayName: 'Install Bicep'
     dependsOn: Prerequisites
     pool:
-      vmImage: $(vmImage)
+      ${{ if ne(parameters.vmImage, '') }}:
+        vmImage: ${{ parameters.vmImage }}
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
     steps:
     - task: Bash@3
       displayName: 'Install latest AZ bicep CLI'
@@ -28,7 +32,10 @@ jobs:
     displayName: 'Build Bicep'
     dependsOn: Install
     pool:
-      vmImage: $(vmImage)
+      ${{ if ne(parameters.vmImage, '') }}:
+        vmImage: ${{ parameters.vmImage }}
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
     steps:
     - task: Bash@3
       displayName: 'Build ARM Template'
