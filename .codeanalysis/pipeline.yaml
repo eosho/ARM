@@ -28,10 +28,10 @@ jobs:
   - job: Tests
     displayName: 'Tests'
     pool:
-      ${{ if ne(parameters.vmImage, '') }}:
-        vmImage: ${{ parameters.vmImage }}
-      ${{ if ne(parameters.poolName, '') }}:
-        name: ${{ parameters.poolName }}
+      ${{ if ne(variables.vmImage, '') }}:
+        vmImage: ${{ variables.vmImage }}
+      ${{ if ne(variables.poolName, '') }}:
+        name: ${{ variables.poolName }}
     steps:
     - task: Bash@3
       displayName: 'Install bicep CLI'
