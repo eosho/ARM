@@ -30,7 +30,7 @@ parameters:
       - true
       - false
 
-  # Only required if InvokeCCPPipeline is set to true
+  # Optional. Only required if InvokeCCPPipeline is set to true
   - name: invokeCCPArgs
     displayName: Values needed for CCP
     type: object

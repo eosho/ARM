@@ -28,7 +28,10 @@ jobs:
   - job: Tests
     displayName: 'Tests'
     pool:
-      vmImage: "ubuntu-latest"
+      ${{ if ne(parameters.vmImage, '') }}:
+        vmImage: ${{ parameters.vmImage }}
+      ${{ if ne(parameters.poolName, '') }}:
+        name: ${{ parameters.poolName }}
     steps:
     - task: Bash@3
       displayName: 'Install bicep CLI'
@@ -78,7 +81,7 @@ jobs:
     #   inputs:
     #     targetType: 'inline'
     #     script: |
-    #       az bicep build --file $(bicepDirectory)/main.bicep --outfile $(bicepDirectory)/main.bicep.json
+    #       az bicep build --file $(bicepDirectory)/main.bicep --outfile $(bicepDirectory)/main.json
 
     - task: CopyFiles@2
       displayName: 'Stage deployment files'
